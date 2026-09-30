@@ -1,0 +1,57 @@
+{
+  "insignia": "Proyecto de demostración",
+  "titular": "Landing con reservas\npara barbería",
+  "pie": "Agenda en línea · Panel de citas para el negocio",
+
+  "fondo": "#1e0c11",
+  "texto": "#f4ede7",
+
+  "fuente": [
+    { "archivo": "public/fonts/archivo-latin-400.woff2", "peso": 400 },
+    { "archivo": "public/fonts/archivo-latin-600.woff2", "peso": 600 },
+    { "archivo": "public/fonts/archivo-latin-700.woff2", "peso": 700 }
+  ],
+  "familia": "ui-sans-serif, system-ui, sans-serif",
+
+  "revelado": { "selector": ".revelar", "clase": "dentro" },
+
+  "secciones": [
+    {
+      "nombre": "servicios",
+      "selector": "#servicios",
+      "titular": "Cuatro cosas,\nbien hechas",
+      "pie": "Precio y duración a la vista, sin letra chica"
+    },
+    {
+      "nombre": "reserva",
+      "selector": "#calendario",
+      "preparar": [
+        "#calendario-rejilla button.dia:not([disabled])",
+        "#horarios .hora:not([disabled])"
+      ],
+      "titular": "El hueco que ves\nes el que queda",
+      "pie": "Calendario en vivo contra la agenda real"
+    },
+    {
+      "nombre": "barberos",
+      "selector": "#barberos",
+      "titular": "Eliges quién\nte atiende",
+      "pie": "O lo deja el sistema en el primero libre"
+    },
+    {
+      "nombre": "panel",
+      "ruta": "/panel",
+      "selector": ".panel",
+      "preparar": [
+        { "ejecutar": "scripts/promo-panel-demo.js" },
+        { "escribir": "#e-clave", "texto": "navaja2012" },
+        { "pulsar": "#entrada-enviar" },
+        { "esperar": 900 },
+        { "pulsar": "[data-rango=\"semana\"]" },
+        { "esperar": 700 }
+      ],
+      "titular": "La barbería ve\nsus citas al instante",
+      "pie": "Panel propio: filtros, contacto directo y estados"
+    }
+  ]
+}

@@ -1,0 +1,1001 @@
+---
+import { Icon } from 'astro-icon/components';
+import Base from '../layouts/Base.astro';
+import Logo from '../components/Logo.astro';
+import { marca } from '../data/barberia';
+
+const titulo = `Panel de citas | ${marca.nombre}`;
+const descripcion = 'Agenda interna de la barbería.';
+
+const RANGOS = [
+  { id: 'hoy', etiqueta: 'Hoy' },
+  { id: 'manana', etiqueta: 'Mañana' },
+  { id: 'semana', etiqueta: 'Próximos 7 días' },
+  { id: 'todas', etiqueta: 'Todas las próximas' },
+  { id: 'historial', etiqueta: 'Últimos 30 días' },
+];
+---
+
+<Base titulo={titulo} descripcion={descripcion} indexable={false} analitica={false}>
+  <div class="panel lienzo lienzo--oscuro">
+    <header class="panel__cabecera">
+      <div class="envoltura panel__cabecera-caja">
+        <div class="panel__marca">
+          <Logo />
+          <span class="panel__etiqueta">Panel de citas</span>
+        </div>
+
+        <div class="panel__sesion" id="panel-sesion" hidden>
+          <span class="panel__correo" id="panel-correo"></span>
+          <button class="btn btn--sm btn--linea" type="button" id="panel-salir">
+            <Icon name="ph:sign-out" aria-hidden="true" />
+            Salir
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main id="contenido" class="envoltura panel__cuerpo">
+      <!-- ----------------------------- Entrada ----------------------------- -->
+      <section class="entrada" id="entrada" hidden>
+        <div class="entrada__caja">
+          <Icon name="ph:lock-simple" class="entrada__candado" aria-hidden="true" />
+          <h1>Agenda de la barbería</h1>
+          <p class="entrada__texto" id="entrada-texto"></p>
+
+          <form id="form-entrada" novalidate>
+            <div class="campo" id="campo-correo">
+              <label for="e-correo">Correo</label>
+              <input type="email" id="e-correo" name="correo" autocomplete="username" />
+            </div>
+
+            <div class="campo">
+              <label for="e-clave">Contraseña</label>
+              <input
+                type="password"
+                id="e-clave"
+                name="clave"
+                autocomplete="current-password"
+                required
+              />
+            </div>
+
+            <button class="btn btn--full btn--lg" type="submit" id="entrada-enviar">Entrar</button>
+
+            <p class="entrada__error" id="entrada-error" role="alert" hidden></p>
+          </form>
+
+          <a class="entrada__volver" href="/">← Volver al sitio</a>
+        </div>
+      </section>
+
+      <!-- ------------------------------ Agenda ----------------------------- -->
+      <section class="agenda" id="agenda" hidden>
+        <div class="agenda__alto">
+          <div>
+            <h1 id="agenda-titulo">Citas de hoy</h1>
+            <p class="agenda__fecha" id="agenda-fecha"></p>
+          </div>
+
+          <button class="btn btn--sm btn--linea" type="button" id="agenda-refrescar">
+            <Icon name="ph:arrows-clockwise" aria-hidden="true" />
+            Actualizar
+          </button>
+        </div>
+
+        <dl class="tablero" id="tablero">
+          <div class="tablero__ficha">
+            <dt>Pendientes</dt>
+            <dd id="t-pendientes">—</dd>
+          </div>
+          <div class="tablero__ficha">
+            <dt>Confirmadas</dt>
+            <dd id="t-confirmadas">—</dd>
+          </div>
+          <div class="tablero__ficha">
+            <dt>Citas en el rango</dt>
+            <dd id="t-total">—</dd>
+          </div>
+          <div class="tablero__ficha">
+            <dt>Ingreso previsto</dt>
+            <dd id="t-dinero">—</dd>
+          </div>
+        </dl>
+
+        <div class="filtros">
+          <div class="filtros__grupo" role="group" aria-label="Rango de fechas">
+            {
+              RANGOS.map((rango, i) => (
+                <button
+                  class="filtro"
+                  type="button"
+                  data-rango={rango.id}
+                  aria-pressed={i === 0 ? 'true' : 'false'}
+                >
+                  {rango.etiqueta}
+                </button>
+              ))
+            }
+          </div>
+
+          <label class="filtros__casilla">
+            <input type="checkbox" id="solo-pendientes" />
+            <span>Solo sin confirmar</span>
+          </label>
+        </div>
+
+        <div class="lista" id="lista" aria-live="polite">
+          <p class="lista__estado">Cargando…</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- Iconos que el panel inserta desde JS. Se declaran una vez y se
+         referencian con <use>, en vez de rehacer el SVG en cada fila. -->
+    <svg width="0" height="0" class="simbolos" aria-hidden="true" focusable="false">
+      <symbol id="i-check" viewBox="0 0 256 256">
+        <path
+          fill="currentColor"
+          d="M232.49 80.49l-128 128a12 12 0 01-17 0l-56-56a12 12 0 0117-17L96 183l119.51-119.5a12 12 0 0117 17z"
+        ></path>
+      </symbol>
+      <symbol id="i-check-circle" viewBox="0 0 256 256">
+        <path
+          fill="currentColor"
+          d="M128 24a104 104 0 10104 104A104.11 104.11 0 00128 24zm45.66 85.66l-56 56a8 8 0 01-11.32 0l-24-24a8 8 0 0111.32-11.32L112 148.69l50.34-50.35a8 8 0 0111.32 11.32z"
+        ></path>
+      </symbol>
+      <symbol id="i-x" viewBox="0 0 256 256">
+        <path
+          fill="currentColor"
+          d="M208.49 191.51a12 12 0 01-17 17L128 145l-63.51 63.52a12 12 0 01-17-17L111 128 47.51 64.49a12 12 0 0117-17L128 111l63.51-63.52a12 12 0 0117 17L145 128z"
+        ></path>
+      </symbol>
+      <symbol id="i-arrows-clockwise" viewBox="0 0 256 256">
+        <path
+          fill="currentColor"
+          d="M240 56v48a8 8 0 01-8 8h-48a8 8 0 010-16h28.69L182.06 73.37A79.56 79.56 0 00126 50h-.66a79.44 79.44 0 00-55.9 22.6 8 8 0 11-11.18-11.44A96 96 0 01193.36 62L224 92.69V56a8 8 0 0116 0zM197.36 171.4a80 80 0 01-112.8-.68L54.62 148H80a8 8 0 000-16H32a8 8 0 00-8 8v48a8 8 0 0016 0v-36.69L73.65 182a96 96 0 00135.4.83 8 8 0 00-11.18-11.44z"
+        ></path>
+      </symbol>
+    </svg>
+  </div>
+</Base>
+
+<style>
+  .panel {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background: var(--vino-950);
+  }
+
+  .panel__cabecera {
+    border-bottom: 1px solid var(--linea);
+    background: var(--vino-900);
+  }
+
+  .panel__cabecera-caja {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    min-height: var(--alto-cabecera);
+  }
+
+  .panel__marca {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .panel__etiqueta {
+    padding: 4px 10px;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--linea-fuerte);
+    font-size: 0.688rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+
+  .panel__sesion {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .panel__sesion[hidden] { display: none; }
+
+  .panel__correo {
+    font-size: 0.813rem;
+    color: var(--ink-2);
+  }
+
+  .panel__cuerpo {
+    flex: 1;
+    padding-block: clamp(28px, 3.4vw, 52px);
+  }
+
+  /* ------------------------------- Entrada -------------------------------- */
+
+  .entrada {
+    display: grid;
+    place-items: center;
+    min-height: 62dvh;
+  }
+
+  .entrada[hidden] { display: none; }
+
+  .entrada__caja {
+    width: min(100%, 26rem);
+    padding: clamp(24px, 3vw, 38px);
+    border: 1px solid var(--linea);
+    border-radius: var(--r-card);
+    background: var(--vino-900);
+  }
+
+  .entrada__candado {
+    width: 28px;
+    height: 28px;
+    color: var(--acento);
+  }
+
+  .entrada__caja h1 {
+    margin-top: 16px;
+    font-size: 1.6rem;
+  }
+
+  .entrada__texto {
+    margin-top: 10px;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--ink-2);
+  }
+
+  .entrada__caja form {
+    display: grid;
+    gap: 14px;
+    margin-top: 24px;
+  }
+
+  .campo { display: grid; gap: 6px; }
+  .campo[hidden] { display: none; }
+
+  .campo label {
+    font-size: 0.813rem;
+    font-weight: 600;
+  }
+
+  .campo input {
+    width: 100%;
+    padding: 11px 14px;
+    border-radius: var(--r-inner);
+    border: 1px solid var(--linea-fuerte);
+    background: var(--vino-850);
+    color: var(--ink);
+    font-size: 0.925rem;
+  }
+
+  .campo input:focus-visible {
+    outline: none;
+    border-color: var(--acento);
+    box-shadow: 0 0 0 3px var(--acento-tenue);
+  }
+
+  .entrada__error {
+    padding: 11px 14px;
+    border-radius: var(--r-inner);
+    background: var(--alerta-tenue);
+    color: var(--alerta-sobre-oscuro);
+    font-size: 0.813rem;
+    line-height: 1.5;
+  }
+
+  .entrada__error[hidden] { display: none; }
+
+  .entrada__volver {
+    display: inline-block;
+    margin-top: 22px;
+    font-size: 0.813rem;
+    color: var(--ink-2);
+    text-decoration: none;
+  }
+
+  .entrada__volver:hover { color: var(--ink); }
+
+  /* -------------------------------- Agenda -------------------------------- */
+
+  .agenda[hidden] { display: none; }
+
+  .agenda__alto {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .agenda__alto h1 { font-size: clamp(1.75rem, 3vw, 2.4rem); }
+
+  .agenda__fecha {
+    margin-top: 6px;
+    font-size: 0.875rem;
+    color: var(--ink-2);
+  }
+
+  .tablero {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--gap);
+    margin-top: clamp(22px, 2.4vw, 32px);
+  }
+
+  .tablero__ficha {
+    padding: 16px 18px;
+    border: 1px solid var(--linea);
+    border-radius: var(--r-card);
+    background: var(--vino-900);
+  }
+
+  .tablero__ficha dt {
+    font-size: 0.688rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  /* Cifras de trabajo en la sans: aquí se leen de un vistazo entre servicio
+     y servicio, y el "3" de Fraunces display se confunde con un "5". */
+  .tablero__ficha dd {
+    margin-top: 8px;
+    font-family: 'Archivo', sans-serif;
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tablero__ficha:first-child dd { color: var(--arena); }
+
+  /* -------------------------------- Filtros ------------------------------- */
+
+  .filtros {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-top: clamp(24px, 2.6vw, 36px);
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--linea);
+  }
+
+  .filtros__grupo {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+
+  .filtro {
+    padding: 8px 15px;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--linea-fuerte);
+    font-size: 0.813rem;
+    font-weight: 500;
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: all 0.18s var(--ease);
+  }
+
+  .filtro:hover { color: var(--ink); border-color: var(--ink-3); }
+
+  .filtro[aria-pressed='true'] {
+    background: var(--arena);
+    border-color: var(--arena);
+    color: var(--vino-950);
+    font-weight: 600;
+  }
+
+  .filtros__casilla {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 0.813rem;
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+
+  .filtros__casilla input {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--arena);
+    cursor: pointer;
+  }
+
+  /* --------------------------------- Lista -------------------------------- */
+
+  .lista {
+    display: grid;
+    gap: clamp(22px, 2.4vw, 32px);
+    margin-top: clamp(24px, 2.6vw, 34px);
+  }
+
+  /* -------------------------------- Cortes -------------------------------- */
+
+  @media (max-width: 760px) {
+    .tablero { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  @media (max-width: 520px) {
+    .panel__correo { display: none; }
+  }
+
+  .simbolos { position: absolute; }
+</style>
+
+<style is:global>
+  /* --------------------------------------------------------------------------
+     Elementos que crea el JavaScript
+
+     Astro añade su atributo de ámbito (data-astro-cid-…) solo a los nodos que
+     están en la plantilla. Las filas de cita nacen en el navegador, así que el
+     CSS con ámbito no las alcanza. Estas reglas van sin ámbito pero colgando
+     de #lista: fuera de esa lista no existen.
+     -------------------------------------------------------------------------- */
+
+  #lista .lista__estado {
+    padding: 48px 20px;
+    border: 1px dashed var(--linea-fuerte);
+    border-radius: var(--r-card);
+    text-align: center;
+    font-size: 0.925rem;
+    color: var(--ink-2);
+  }
+
+  #lista .dia-grupo__titulo {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 12px;
+    font-family: 'Archivo', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--acento);
+  }
+
+  #lista .dia-grupo__cuenta {
+    letter-spacing: 0;
+    text-transform: none;
+    font-weight: 400;
+    color: var(--ink-3);
+  }
+
+  #lista .dia-grupo__lista { display: grid; gap: 9px; }
+
+  #lista .cita-fila {
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1.1fr) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 18px;
+    padding: 15px 18px;
+    border: 1px solid var(--linea);
+    border-left: 3px solid var(--linea-fuerte);
+    border-radius: var(--r-card);
+    background: var(--vino-900);
+  }
+
+  /* La franja de color de la izquierda deja ver el estado de toda la agenda
+     de un vistazo, sin leer cada insignia. */
+  #lista .cita-fila[data-estado='pendiente'] { border-left-color: var(--acento); }
+  #lista .cita-fila[data-estado='confirmada'] { border-left-color: var(--ok); }
+  #lista .cita-fila[data-estado='completada'] { border-left-color: var(--ink-3); opacity: 0.72; }
+  #lista .cita-fila[data-estado='cancelada'] { border-left-color: var(--alerta); opacity: 0.55; }
+
+  #lista .cita-fila__hora {
+    font-family: 'Archivo', sans-serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  #lista .cita-fila__duracion {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.688rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--ink-3);
+  }
+
+  #lista .cita-fila__cliente strong {
+    display: block;
+    font-size: 0.938rem;
+    font-weight: 600;
+  }
+
+  #lista .cita-fila__contacto {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-top: 5px;
+  }
+
+  #lista .cita-fila__contacto a {
+    font-size: 0.781rem;
+    color: var(--ink-2);
+    text-decoration: none;
+    font-variant-numeric: tabular-nums;
+  }
+
+  #lista .cita-fila__contacto a:hover {
+    color: var(--arena);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  #lista .cita-fila__servicio {
+    font-size: 0.875rem;
+    color: var(--ink);
+  }
+
+  #lista .cita-fila__barbero {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.781rem;
+    color: var(--ink-2);
+  }
+
+  #lista .cita-fila__notas {
+    grid-column: 2 / -1;
+    margin-top: 4px;
+    padding: 9px 12px;
+    border-radius: var(--r-inner);
+    background: var(--vino-850);
+    font-size: 0.781rem;
+    line-height: 1.5;
+    color: var(--ink-2);
+    font-style: italic;
+  }
+
+  #lista .cita-fila__lado {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-self: end;
+  }
+
+  #lista .insignia {
+    padding: 5px 11px;
+    border-radius: var(--r-pill);
+    font-size: 0.688rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  #lista .insignia[data-estado='pendiente'] { background: var(--acento-tenue); color: var(--arena); }
+  #lista .insignia[data-estado='confirmada'] { background: var(--ok-tenue); color: var(--ok-sobre-oscuro); }
+  #lista .insignia[data-estado='completada'] { background: var(--sobre-oscuro-sup); color: var(--ink-2); }
+  #lista .insignia[data-estado='cancelada'] { background: var(--alerta-tenue); color: var(--alerta-sobre-oscuro); }
+
+  #lista .acciones { display: flex; gap: 6px; }
+
+  #lista .accion {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--linea-fuerte);
+    color: var(--ink-2);
+    cursor: pointer;
+    transition:
+      color 0.16s var(--ease),
+      border-color 0.16s var(--ease),
+      background-color 0.16s var(--ease);
+  }
+
+  #lista .accion:hover {
+    color: var(--ink);
+    border-color: var(--ink-3);
+    background: var(--vino-850);
+  }
+
+  #lista .accion[data-accion='confirmada']:hover { color: var(--ok-sobre-oscuro); border-color: var(--ok-sobre-oscuro); }
+  #lista .accion[data-accion='completada']:hover { color: var(--arena); border-color: var(--arena); }
+  #lista .accion[data-accion='cancelada']:hover { color: var(--alerta-sobre-oscuro); border-color: var(--alerta-sobre-oscuro); }
+  #lista .accion[disabled] { opacity: 0.3; cursor: not-allowed; }
+  #lista .accion svg { width: 16px; height: 16px; }
+
+  #lista .cita-fila__folio {
+    font-size: 0.688rem;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (max-width: 1100px) {
+    #lista .cita-fila {
+      grid-template-columns: 78px minmax(0, 1fr);
+      gap: 10px 16px;
+    }
+
+    #lista .cita-fila__servicio { grid-column: 2; }
+    #lista .cita-fila__lado { grid-column: 2; justify-self: start; }
+  }
+
+  @media (max-width: 520px) {
+    #lista .cita-fila { grid-template-columns: minmax(0, 1fr); }
+    #lista .cita-fila__servicio,
+    #lista .cita-fila__lado,
+    #lista .cita-fila__notas { grid-column: 1; }
+  }
+</style>
+
+<script>
+  import {
+    listarCitas,
+    cambiarEstado,
+    entrar,
+    salir,
+    sesionActual,
+    ahoraEnBarberia,
+    sumarDias,
+    fechaLegible,
+    horaLegible,
+    HAY_SUPABASE,
+    CLAVE_DEMO_PANEL,
+    type Cita,
+    type EstadoCita,
+  } from '../lib/reservas';
+  import { contacto } from '../data/barberia';
+
+  const entrada = document.getElementById('entrada')!;
+  const agenda = document.getElementById('agenda')!;
+  const cajaSesion = document.getElementById('panel-sesion')!;
+  const lista = document.getElementById('lista')!;
+
+  const dinero = new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+
+  const ETIQUETAS: Record<EstadoCita, string> = {
+    pendiente: 'Sin confirmar',
+    confirmada: 'Confirmada',
+    completada: 'Atendida',
+    cancelada: 'Cancelada',
+  };
+
+  /* Qué transiciones tienen sentido desde cada estado. Ofrecer "completar"
+     en una cita cancelada solo invita a equivocarse. */
+  const TRANSICIONES: Record<EstadoCita, EstadoCita[]> = {
+    pendiente: ['confirmada', 'cancelada'],
+    confirmada: ['completada', 'cancelada'],
+    completada: [],
+    cancelada: ['pendiente'],
+  };
+
+  const ICONOS: Record<EstadoCita, string> = {
+    pendiente: 'arrows-clockwise',
+    confirmada: 'check',
+    completada: 'check-circle',
+    cancelada: 'x',
+  };
+
+  const TITULOS: Record<EstadoCita, string> = {
+    pendiente: 'Devolver a sin confirmar',
+    confirmada: 'Confirmar la cita',
+    completada: 'Marcar como atendida',
+    cancelada: 'Cancelar la cita',
+  };
+
+  let rango = 'hoy';
+  let soloPendientes = false;
+
+  /* ------------------------------- Entrada -------------------------------- */
+
+  const textoEntrada = document.getElementById('entrada-texto')!;
+  const campoCorreo = document.getElementById('campo-correo')!;
+  const errorEntrada = document.getElementById('entrada-error')!;
+
+  if (HAY_SUPABASE) {
+    textoEntrada.textContent =
+      'Entra con la cuenta de Supabase que diste de alta para el personal de la barbería.';
+  } else {
+    // Sin Supabase no hay usuarios que validar. Se dice de frente en vez de
+    // fingir un inicio de sesión que no protege nada.
+    campoCorreo.hidden = true;
+    (document.getElementById('e-correo') as HTMLInputElement).required = false;
+    textoEntrada.textContent =
+      `Modo demostración: las citas se guardan solo en este navegador. La contraseña es ${CLAVE_DEMO_PANEL}.`;
+  }
+
+  document.getElementById('form-entrada')!.addEventListener('submit', async (evento) => {
+    evento.preventDefault();
+    errorEntrada.hidden = true;
+
+    const boton = document.getElementById('entrada-enviar') as HTMLButtonElement;
+    const correo = (document.getElementById('e-correo') as HTMLInputElement).value;
+    const clave = (document.getElementById('e-clave') as HTMLInputElement).value;
+
+    boton.disabled = true;
+    try {
+      await entrar(correo, clave);
+      await arrancar();
+    } catch (error) {
+      errorEntrada.textContent = error instanceof Error ? error.message : 'No pudimos entrar.';
+      errorEntrada.hidden = false;
+    } finally {
+      boton.disabled = false;
+    }
+  });
+
+  document.getElementById('panel-salir')!.addEventListener('click', async () => {
+    await salir();
+    location.reload();
+  });
+
+  /* -------------------------------- Rangos --------------------------------- */
+
+  function limites() {
+    const hoy = ahoraEnBarberia().fecha;
+    switch (rango) {
+      case 'manana':
+        return { desde: sumarDias(hoy, 1), hasta: sumarDias(hoy, 1), titulo: 'Citas de mañana' };
+      case 'semana':
+        return { desde: hoy, hasta: sumarDias(hoy, 6), titulo: 'Próximos 7 días' };
+      case 'todas':
+        return { desde: hoy, hasta: sumarDias(hoy, 90), titulo: 'Todas las citas próximas' };
+      case 'historial':
+        return { desde: sumarDias(hoy, -30), hasta: sumarDias(hoy, -1), titulo: 'Últimos 30 días' };
+      default:
+        return { desde: hoy, hasta: hoy, titulo: 'Citas de hoy' };
+    }
+  }
+
+  /* -------------------------------- Pintado -------------------------------- */
+
+  function filaDeCita(cita: Cita) {
+    const fila = document.createElement('article');
+    fila.className = 'cita-fila';
+    fila.dataset.estado = cita.estado;
+
+    const hora = document.createElement('p');
+    hora.className = 'cita-fila__hora';
+    hora.textContent = horaLegible(cita.hora);
+    const duracion = document.createElement('span');
+    duracion.className = 'cita-fila__duracion';
+    duracion.textContent = `${cita.duracion_min} min`;
+    hora.append(duracion);
+
+    const cliente = document.createElement('div');
+    cliente.className = 'cita-fila__cliente';
+    const nombre = document.createElement('strong');
+    nombre.textContent = cita.cliente_nombre;
+    cliente.append(nombre);
+
+    const contactoCaja = document.createElement('div');
+    contactoCaja.className = 'cita-fila__contacto';
+
+    const tel = document.createElement('a');
+    tel.href = `tel:${cita.cliente_telefono.replace(/\s/g, '')}`;
+    tel.textContent = cita.cliente_telefono;
+    contactoCaja.append(tel);
+
+    const wa = document.createElement('a');
+    const soloDigitos = cita.cliente_telefono.replace(/\D/g, '');
+    wa.href = `https://wa.me/${soloDigitos.length > 10 ? soloDigitos : '52' + soloDigitos}?text=${encodeURIComponent(
+      `Hola ${cita.cliente_nombre.split(' ')[0]}, te escribimos de la barbería para confirmar tu cita del ${fechaLegible(cita.fecha)} a las ${horaLegible(cita.hora)}.`
+    )}`;
+    wa.target = '_blank';
+    wa.rel = 'noopener';
+    wa.textContent = 'WhatsApp';
+    contactoCaja.append(wa);
+
+    if (cita.cliente_correo) {
+      const correo = document.createElement('a');
+      correo.href = `mailto:${cita.cliente_correo}`;
+      correo.textContent = cita.cliente_correo;
+      contactoCaja.append(correo);
+    }
+
+    cliente.append(contactoCaja);
+
+    const servicio = document.createElement('div');
+    servicio.className = 'cita-fila__servicio';
+    servicio.textContent = `${cita.servicio_nombre} · ${dinero.format(cita.precio)}`;
+    const barbero = document.createElement('span');
+    barbero.className = 'cita-fila__barbero';
+    barbero.textContent = `Con ${cita.barbero_nombre}`;
+    servicio.append(barbero);
+
+    const lado = document.createElement('div');
+    lado.className = 'cita-fila__lado';
+
+    const folio = document.createElement('span');
+    folio.className = 'cita-fila__folio';
+    folio.textContent = cita.folio;
+
+    const insignia = document.createElement('span');
+    insignia.className = 'insignia';
+    insignia.dataset.estado = cita.estado;
+    insignia.textContent = ETIQUETAS[cita.estado];
+
+    const acciones = document.createElement('div');
+    acciones.className = 'acciones';
+
+    TRANSICIONES[cita.estado].forEach((destino) => {
+      const boton = document.createElement('button');
+      boton.type = 'button';
+      boton.className = 'accion';
+      boton.dataset.accion = destino;
+      boton.title = TITULOS[destino];
+      boton.setAttribute('aria-label', `${TITULOS[destino]} de ${cita.cliente_nombre}`);
+      boton.innerHTML = `<svg width="16" height="16" aria-hidden="true"><use href="#i-${ICONOS[destino]}"></use></svg>`;
+
+      boton.addEventListener('click', async () => {
+        // Cancelar libera el hueco y se le avisa al cliente: conviene que sea
+        // un acto deliberado, no un clic de más.
+        if (destino === 'cancelada') {
+          const seguro = confirm(
+            `¿Cancelar la cita de ${cita.cliente_nombre} del ${fechaLegible(cita.fecha)} a las ${horaLegible(cita.hora)}?`
+          );
+          if (!seguro) return;
+        }
+
+        acciones.querySelectorAll('button').forEach((b) => (b.disabled = true));
+        try {
+          await cambiarEstado(cita.id, destino);
+          await refrescar();
+        } catch {
+          alert('No pudimos guardar el cambio. Revisa tu conexión y vuelve a intentarlo.');
+          acciones.querySelectorAll('button').forEach((b) => (b.disabled = false));
+        }
+      });
+
+      acciones.append(boton);
+    });
+
+    lado.append(folio, insignia, acciones);
+    fila.append(hora, cliente, servicio, lado);
+
+    if (cita.notas) {
+      const notas = document.createElement('p');
+      notas.className = 'cita-fila__notas';
+      notas.textContent = `“${cita.notas}”`;
+      fila.append(notas);
+    }
+
+    return fila;
+  }
+
+  function pintar(citas: Cita[]) {
+    lista.replaceChildren();
+
+    const visibles = soloPendientes ? citas.filter((c) => c.estado === 'pendiente') : citas;
+
+    document.getElementById('t-pendientes')!.textContent = String(
+      citas.filter((c) => c.estado === 'pendiente').length
+    );
+    document.getElementById('t-confirmadas')!.textContent = String(
+      citas.filter((c) => c.estado === 'confirmada').length
+    );
+    document.getElementById('t-total')!.textContent = String(
+      citas.filter((c) => c.estado !== 'cancelada').length
+    );
+    document.getElementById('t-dinero')!.textContent = dinero.format(
+      citas
+        .filter((c) => c.estado !== 'cancelada')
+        .reduce((suma, c) => suma + c.precio, 0)
+    );
+
+    if (visibles.length === 0) {
+      const vacio = document.createElement('p');
+      vacio.className = 'lista__estado';
+      vacio.textContent = soloPendientes
+        ? 'No hay citas sin confirmar en este rango.'
+        : 'No hay citas en este rango. Cuando alguien reserve, aparecerá aquí.';
+      lista.append(vacio);
+      return;
+    }
+
+    // Agrupadas por día: así se lee como la libreta de la recepción.
+    const porDia = new Map<string, Cita[]>();
+    visibles.forEach((cita) => {
+      if (!porDia.has(cita.fecha)) porDia.set(cita.fecha, []);
+      porDia.get(cita.fecha)!.push(cita);
+    });
+
+    for (const [fecha, delDia] of porDia) {
+      const grupo = document.createElement('section');
+      grupo.className = 'dia-grupo';
+
+      const titulo = document.createElement('h2');
+      titulo.className = 'dia-grupo__titulo';
+      titulo.textContent = fechaLegible(fecha);
+      const cuenta = document.createElement('span');
+      cuenta.className = 'dia-grupo__cuenta';
+      cuenta.textContent = `${delDia.length} ${delDia.length === 1 ? 'cita' : 'citas'}`;
+      titulo.append(cuenta);
+
+      const filas = document.createElement('div');
+      filas.className = 'dia-grupo__lista';
+      delDia.forEach((cita) => filas.append(filaDeCita(cita)));
+
+      grupo.append(titulo, filas);
+      lista.append(grupo);
+    }
+  }
+
+  async function refrescar() {
+    const { desde, hasta, titulo } = limites();
+    document.getElementById('agenda-titulo')!.textContent = titulo;
+    // "jueves, 24 de septiembre" -> "Jueves, 24 de septiembre". Con
+    // text-transform: capitalize el "de" también saldría en mayúscula.
+    const hoyLegible = fechaLegible(ahoraEnBarberia().fecha);
+    document.getElementById('agenda-fecha')!.textContent =
+      hoyLegible.charAt(0).toUpperCase() + hoyLegible.slice(1);
+
+    try {
+      pintar(await listarCitas(desde, hasta));
+    } catch {
+      lista.replaceChildren();
+      const fallo = document.createElement('p');
+      fallo.className = 'lista__estado';
+      fallo.textContent = `No pudimos cargar la agenda. Revisa la conexión o llama al ${contacto.telefono}.`;
+      lista.append(fallo);
+    }
+  }
+
+  document.querySelectorAll<HTMLButtonElement>('[data-rango]').forEach((boton) => {
+    boton.addEventListener('click', () => {
+      rango = boton.dataset.rango!;
+      document
+        .querySelectorAll<HTMLButtonElement>('[data-rango]')
+        .forEach((b) => b.setAttribute('aria-pressed', String(b === boton)));
+      refrescar();
+    });
+  });
+
+  (document.getElementById('solo-pendientes') as HTMLInputElement).addEventListener(
+    'change',
+    (evento) => {
+      soloPendientes = (evento.target as HTMLInputElement).checked;
+      refrescar();
+    }
+  );
+
+  document.getElementById('agenda-refrescar')!.addEventListener('click', refrescar);
+
+  /* ------------------------------- Arranque -------------------------------- */
+
+  async function arrancar() {
+    const sesion = await sesionActual();
+
+    if (!sesion) {
+      entrada.hidden = false;
+      agenda.hidden = true;
+      cajaSesion.hidden = true;
+      return;
+    }
+
+    entrada.hidden = true;
+    agenda.hidden = false;
+    cajaSesion.hidden = false;
+    document.getElementById('panel-correo')!.textContent = sesion.correo;
+    await refrescar();
+  }
+
+  arrancar();
+</script>

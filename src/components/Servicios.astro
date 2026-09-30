@@ -1,0 +1,272 @@
+---
+import { Icon } from 'astro-icon/components';
+import { servicios } from '../data/barberia';
+
+const precio = new Intl.NumberFormat('es-MX', {
+  style: 'currency',
+  currency: 'MXN',
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+});
+---
+
+<section class="servicios seccion lienzo lienzo--claro" id="servicios">
+  <div class="envoltura">
+    <div class="servicios__intro revelar">
+      <div class="encabezado">
+        <span class="rotulo">La carta</span>
+        <h2>Cuatro cosas, <em>bien hechas</em></h2>
+        <p>
+          No hacemos alisados ni tintes de fantasía. Hacemos corte, barba y navaja, y por eso
+          los hacemos rápido y parejo. El precio que ves es el que pagas.
+        </p>
+      </div>
+
+      <p class="servicios__nota">
+        <Icon name="ph:check-circle" aria-hidden="true" />
+        Sin cargo por cancelar hasta 2 horas antes
+      </p>
+    </div>
+
+    <ul class="servicios__rejilla">
+      {
+        servicios.map((servicio, i) => (
+          <li class="tarjeta revelar" data-orden={i}>
+            <div class="tarjeta__foto">
+              <img
+                src={servicio.imagen}
+                width="1000"
+                height="750"
+                alt={servicio.alt}
+                loading="lazy"
+                decoding="async"
+              />
+              <span class="tarjeta__duracion">
+                <Icon name="ph:clock" aria-hidden="true" />
+                {servicio.duracionMin} min
+              </span>
+            </div>
+
+            <div class="tarjeta__cuerpo">
+              <div class="tarjeta__titulo">
+                <h3>{servicio.nombre}</h3>
+                <p class="tarjeta__precio">{precio.format(servicio.precio)}</p>
+              </div>
+
+              <p class="tarjeta__texto">{servicio.texto}</p>
+
+              <ul class="tarjeta__incluye">
+                {servicio.incluye.map((punto) => (
+                  <li>
+                    <Icon name="ph:check" aria-hidden="true" />
+                    {punto}
+                  </li>
+                ))}
+              </ul>
+
+              <button class="tarjeta__accion" type="button" data-reservar={servicio.slug}>
+                Reservar {servicio.nombre.toLowerCase()}
+                <Icon name="ph:arrow-up-right" aria-hidden="true" />
+              </button>
+            </div>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+<style>
+  .servicios__intro {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 28px;
+    flex-wrap: wrap;
+  }
+
+  .servicios__nota {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 6px;
+    font-size: 0.813rem;
+    font-weight: 500;
+    color: var(--ink-2);
+  }
+
+  .servicios__nota :global(svg) {
+    width: 17px;
+    height: 17px;
+    color: var(--acento-texto);
+    flex: none;
+  }
+
+  .servicios__rejilla {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--gap);
+    margin-top: clamp(32px, 3.4vw, 54px);
+  }
+
+  .tarjeta {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--linea);
+    border-radius: var(--r-card);
+    background: var(--sup);
+    overflow: hidden;
+    transition:
+      border-color 0.24s var(--ease),
+      transform 0.24s var(--ease),
+      box-shadow 0.24s var(--ease);
+  }
+
+  .tarjeta:hover {
+    border-color: var(--acento);
+    transform: translateY(-3px);
+    box-shadow: var(--sombra-md);
+  }
+
+  .tarjeta__foto {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    background: var(--sup-2);
+  }
+
+  .tarjeta__foto img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .tarjeta__duracion {
+    position: absolute;
+    left: 10px;
+    bottom: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 11px;
+    border-radius: var(--r-pill);
+    background: var(--velo);
+    backdrop-filter: blur(6px);
+    color: var(--sobre-oscuro-ink);
+    font-size: 0.688rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tarjeta__duracion :global(svg) { width: 13px; height: 13px; color: var(--arena); }
+
+  .tarjeta__cuerpo {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding: clamp(16px, 1.5vw, 22px);
+  }
+
+  .tarjeta__titulo {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .tarjeta__titulo h3 {
+    font-size: 1.22rem;
+    letter-spacing: -0.024em;
+  }
+
+  .tarjeta__precio {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--acento-texto);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .tarjeta__texto {
+    margin-top: 10px;
+    font-size: 0.875rem;
+    line-height: 1.62;
+    color: var(--ink-2);
+  }
+
+  .tarjeta__incluye {
+    display: grid;
+    gap: 7px;
+    margin-top: 16px;
+    padding-top: 15px;
+    border-top: 1px solid var(--linea);
+  }
+
+  .tarjeta__incluye li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.813rem;
+    color: var(--ink-2);
+  }
+
+  .tarjeta__incluye :global(svg) {
+    width: 14px;
+    height: 14px;
+    flex: none;
+    color: var(--acento-texto);
+  }
+
+  .tarjeta__accion {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    margin-top: auto;
+    padding-top: 18px;
+    font-size: 0.813rem;
+    font-weight: 600;
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .tarjeta__accion :global(svg) {
+    width: 16px;
+    height: 16px;
+    flex: none;
+    color: var(--acento-texto);
+    transition: transform 0.2s var(--ease);
+  }
+
+  .tarjeta__accion:hover :global(svg) { transform: translate(2px, -2px); }
+
+  /* ------------------------------- Cortes -------------------------------- */
+
+  @media (max-width: 1080px) {
+    .servicios__rejilla { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  @media (max-width: 620px) {
+    .servicios__rejilla { grid-template-columns: minmax(0, 1fr); }
+    .servicios__intro { align-items: flex-start; }
+  }
+</style>
+
+<script>
+  /* "Reservar corte clásico" tiene que llegar al módulo de abajo con ese
+     servicio ya elegido. Si no, el usuario repite la decisión que acaba de
+     tomar. El módulo escucha este evento. */
+  document.querySelectorAll<HTMLButtonElement>('[data-reservar]').forEach((boton) => {
+    boton.addEventListener('click', () => {
+      const slug = boton.dataset.reservar;
+      document.dispatchEvent(new CustomEvent('elegir-servicio', { detail: { slug } }));
+      document.getElementById('reservar')?.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          ? 'auto'
+          : 'smooth',
+        block: 'start',
+      });
+    });
+  });
+</script>

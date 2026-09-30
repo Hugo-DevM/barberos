@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Navaja & Filo">
+  <rect width="64" height="64" rx="14" fill="#2b1218"/>
+  <g fill="none" stroke="#e8c9b0" stroke-width="4" stroke-linecap="round">
+    <path d="M20.5 13 L43 42.5"/>
+    <path d="M43.5 13 L21 42.5"/>
+    <circle cx="18.5" cy="49" r="5.5"/>
+    <circle cx="45.5" cy="49" r="5.5"/>
+  </g>
+  <circle cx="32" cy="28" r="2.4" fill="#f3ddc9"/>
+</svg>

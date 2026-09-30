@@ -1,0 +1,166 @@
+---
+import Base from '../layouts/Base.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import { marca, contacto } from '../data/barberia';
+
+const titulo = `Aviso de privacidad | ${marca.nombre}`;
+const descripcion = `Cómo trata ${marca.nombre} los datos personales de quienes reservan una cita.`;
+
+/* PLANTILLA DE DEMOSTRACIÓN. Este texto sirve para que el enlace del
+   formulario no quede roto y para dejar apuntado qué hay que cubrir. No es
+   asesoría legal: antes de publicar, que lo revise quien corresponda y
+   ajústalo al tratamiento real de datos del negocio. */
+const secciones = [
+  {
+    titulo: 'Quién es responsable de tus datos',
+    parrafos: [
+      `${marca.nombre}, con domicilio en ${contacto.calle}, ${contacto.colonia}, ${contacto.cp}, es responsable del tratamiento de los datos personales que nos dejas al reservar una cita.`,
+      `Para cualquier asunto relacionado con este aviso puedes escribir a ${contacto.correo} o llamar al ${contacto.telefono}.`,
+    ],
+  },
+  {
+    titulo: 'Qué datos pedimos',
+    parrafos: [
+      'Al reservar te pedimos tu nombre y un teléfono. El correo electrónico y las notas sobre el corte son opcionales.',
+      'No pedimos datos financieros: el pago se hace en el local. Tampoco recogemos datos sensibles.',
+    ],
+  },
+  {
+    titulo: 'Para qué los usamos',
+    parrafos: [
+      'Únicamente para apartar tu lugar en la agenda, confirmarte la cita, recordártela y avisarte si surge un cambio de última hora.',
+      'No los usamos para publicidad ni los compartimos, vendemos o cedemos a terceros. Los únicos terceros que intervienen son el proveedor de la base de datos donde se guarda la agenda y el servicio de medición de visitas, ambos por cuenta nuestra y con el alcance que se describe abajo.',
+    ],
+  },
+  {
+    /* Esta sección tiene que seguir a src/components/Analitica.astro. Si se
+       quita PUBLIC_GA_ID, sobra; si se conecta Google Ads, se queda corta. */
+    titulo: 'Cookies y medición de visitas',
+    parrafos: [
+      'Usamos Google Analytics para saber cuánta gente visita el sitio, desde qué tipo de dispositivo llega y qué secciones mira. Para eso Google instala cookies en tu navegador y recoge tu dirección IP de forma abreviada.',
+      'Lo que medimos son gestos, no personas: una vista de página, un clic en el botón de WhatsApp o del teléfono, y el hecho de que una reserva se completó, con el servicio y el importe. Tu nombre, tu teléfono y tu correo nunca se mandan a Google.',
+      'La medición no se usa para mostrarte publicidad: la parte publicitaria de Google está desactivada en este sitio. Si no quieres que se registre tu visita, puedes bloquear las cookies desde la configuración de tu navegador o instalar el complemento de inhabilitación que Google publica; el sitio y la reserva funcionan igual.',
+    ],
+  },
+  {
+    titulo: 'Cuánto tiempo los conservamos',
+    parrafos: [
+      'Conservamos el registro de tus citas mientras seas cliente y hasta dos años después de tu última visita, para poder consultar el historial de tu corte si vuelves.',
+      'Pasado ese plazo, los datos se eliminan.',
+    ],
+  },
+  {
+    titulo: 'Tus derechos',
+    parrafos: [
+      'Puedes pedirnos en cualquier momento acceder a tus datos, corregirlos, cancelarlos u oponerte a que los usemos, así como revocar el consentimiento que nos diste.',
+      `Basta con escribir a ${contacto.correo} indicando qué quieres hacer. Te respondemos en un máximo de veinte días hábiles.`,
+    ],
+  },
+  {
+    titulo: 'Cambios a este aviso',
+    parrafos: [
+      'Si cambiamos la forma en que tratamos los datos, publicaremos la versión actualizada en esta misma página con la fecha de la última modificación.',
+    ],
+  },
+];
+---
+
+<Base titulo={titulo} descripcion={descripcion} indexable={false}>
+  <SiteHeader />
+
+  <main id="contenido" class="legal seccion lienzo lienzo--claro">
+    <div class="envoltura">
+      <div class="legal__cabeza">
+        <span class="rotulo">Legal</span>
+        <h1>Aviso de privacidad</h1>
+        <p class="legal__intro">
+          Qué datos te pedimos cuando reservas una cita, para qué los usamos y cómo puedes
+          pedirnos que los borremos.
+        </p>
+        <p class="legal__demo">
+          Este texto es una plantilla de demostración y no constituye asesoría legal. Antes de
+          publicar el sitio, revísalo y ajústalo al tratamiento real de datos del negocio.
+        </p>
+      </div>
+
+      <div class="legal__cuerpo">
+        {
+          secciones.map((seccion) => (
+            <section>
+              <h2>{seccion.titulo}</h2>
+              {seccion.parrafos.map((parrafo) => (
+                <p>{parrafo}</p>
+              ))}
+            </section>
+          ))
+        }
+      </div>
+
+      <a class="legal__volver" href="/">← Volver al inicio</a>
+    </div>
+  </main>
+
+  <SiteFooter />
+</Base>
+
+<style>
+  .legal {
+    padding-top: calc(var(--alto-cabecera) + clamp(28px, 3vw, 48px));
+  }
+
+  .legal__cabeza { max-width: 46rem; }
+
+  .legal__cabeza h1 {
+    margin-top: 18px;
+    font-size: clamp(2.2rem, 4.6vw, 3.4rem);
+  }
+
+  .legal__intro {
+    margin-top: 18px;
+    font-size: 1.05rem;
+    line-height: 1.7;
+    color: var(--ink-2);
+  }
+
+  .legal__demo {
+    margin-top: 20px;
+    padding: 14px 18px;
+    border-left: 3px solid var(--acento);
+    background: var(--sup);
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--ink-2);
+  }
+
+  .legal__cuerpo {
+    display: grid;
+    gap: clamp(26px, 3vw, 40px);
+    max-width: 46rem;
+    margin-top: clamp(34px, 3.6vw, 56px);
+  }
+
+  .legal__cuerpo h2 {
+    font-size: clamp(1.28rem, 2vw, 1.6rem);
+    margin-bottom: 12px;
+  }
+
+  .legal__cuerpo p {
+    font-size: 0.975rem;
+    line-height: 1.72;
+    color: var(--ink-2);
+  }
+
+  .legal__cuerpo p + p { margin-top: 12px; }
+
+  .legal__volver {
+    display: inline-block;
+    margin-top: clamp(34px, 3.6vw, 52px);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--acento-texto);
+    text-decoration: none;
+    border-bottom: 1px solid currentColor;
+    padding-bottom: 2px;
+  }
+</style>

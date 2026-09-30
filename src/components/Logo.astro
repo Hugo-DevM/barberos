@@ -1,0 +1,58 @@
+---
+import { marca } from '../data/barberia';
+
+interface Props {
+  /* En el pie la marca se compone más grande y sin enlace. */
+  tamano?: 'normal' | 'grande';
+  comoEnlace?: boolean;
+}
+
+const { tamano = 'normal', comoEnlace = true } = Astro.props;
+const Etiqueta = comoEnlace ? 'a' : 'div';
+---
+
+<Etiqueta
+  class:list={['logo', tamano === 'grande' && 'logo--grande']}
+  {...comoEnlace ? { href: '/', 'aria-label': `${marca.nombre}, ir al inicio` } : {}}
+>
+  <svg class="logo__marca" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+    <g fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round">
+      <path d="M20.5 13 L43 42.5"></path>
+      <path d="M43.5 13 L21 42.5"></path>
+      <circle cx="18.5" cy="49" r="5.5"></circle>
+      <circle cx="45.5" cy="49" r="5.5"></circle>
+    </g>
+    <circle cx="32" cy="28" r="2.4" fill="currentColor"></circle>
+  </svg>
+  <span class="logo__texto">{marca.nombre}</span>
+</Etiqueta>
+
+<style>
+  .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 11px;
+    text-decoration: none;
+    color: var(--ink);
+  }
+
+  .logo__marca {
+    width: 26px;
+    height: 26px;
+    flex: none;
+    color: var(--acento);
+  }
+
+  .logo__texto {
+    font-family: 'Fraunces', ui-serif, Georgia, serif;
+    font-size: 1.22rem;
+    font-weight: 700;
+    letter-spacing: -0.028em;
+    white-space: nowrap;
+  }
+
+  .logo--grande .logo__marca { width: 34px; height: 34px; }
+  .logo--grande .logo__texto { font-size: 1.6rem; }
+
+  a.logo:hover .logo__marca { color: var(--acento-alto); }
+</style>

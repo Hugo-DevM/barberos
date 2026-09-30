@@ -1,0 +1,120 @@
+---
+import { Icon } from 'astro-icon/components';
+import { galeria, contacto } from '../data/barberia';
+
+const instagram = contacto.redes.find((r) => r.nombre === 'Instagram');
+---
+
+<section class="galeria seccion lienzo lienzo--oscuro" id="galeria">
+  <div class="envoltura">
+    <div class="galeria__intro revelar">
+      <div class="encabezado">
+        <span class="rotulo">{galeria.eyebrow}</span>
+        <h2>{galeria.titulo}</h2>
+        <p>{galeria.texto}</p>
+      </div>
+
+      {
+        instagram && (
+          <a class="btn btn--linea" href={instagram.url} target="_blank" rel="noopener">
+            <Icon name="ph:instagram-logo" aria-hidden="true" />
+            Ver más en Instagram
+          </a>
+        )
+      }
+    </div>
+
+    <ul class="galeria__rejilla">
+      {
+        galeria.fotos.map((foto, i) => (
+          <li class="galeria__celda revelar" data-orden={i % 4}>
+            <img
+              src={foto.src}
+              width="900"
+              height="900"
+              alt={foto.alt}
+              loading="lazy"
+              decoding="async"
+            />
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+<style>
+  .galeria__intro {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 28px;
+    flex-wrap: wrap;
+  }
+
+  /* Rejilla de ritmo irregular: dos piezas altas y tres anchas rompen la
+     monotonía del catálogo. Cada celda va colocada a mano porque con
+     colocación automática las piezas anchas no caben al final de una fila y
+     dejan huecos: 8 fotos ocupan exactamente 4 columnas por 3 filas.
+
+       [ A ][ B ][   C   ]
+       [ A ][   D   ][ E ]
+       [ F ][ G ][   H   ]
+  */
+  .galeria__rejilla {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: repeat(3, clamp(120px, 13vw, 185px));
+    gap: var(--gap);
+    margin-top: clamp(32px, 3.4vw, 54px);
+  }
+
+  .galeria__celda {
+    overflow: hidden;
+    border-radius: var(--r-card);
+    background: var(--sup);
+    border: 1px solid var(--linea);
+  }
+
+  .galeria__celda:nth-child(1) { grid-column: 1; grid-row: 1 / span 2; }
+  .galeria__celda:nth-child(2) { grid-column: 2; grid-row: 1; }
+  .galeria__celda:nth-child(3) { grid-column: 3 / span 2; grid-row: 1; }
+  .galeria__celda:nth-child(4) { grid-column: 2 / span 2; grid-row: 2; }
+  .galeria__celda:nth-child(5) { grid-column: 4; grid-row: 2; }
+  .galeria__celda:nth-child(6) { grid-column: 1; grid-row: 3; }
+  .galeria__celda:nth-child(7) { grid-column: 2; grid-row: 3; }
+  .galeria__celda:nth-child(8) { grid-column: 3 / span 2; grid-row: 3; }
+
+  .galeria__celda img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.7s var(--ease);
+  }
+
+  .galeria__celda:hover img { transform: scale(1.05); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .galeria__celda:hover img { transform: none; }
+  }
+
+  /* En dos columnas cualquier pieza ancha ocuparía la fila entera. La
+     colocación a mano se descarta y todas las celdas vuelven a medir lo
+     mismo, que a ese ancho ya es suficiente variedad. */
+  @media (max-width: 860px) {
+    .galeria__rejilla {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: none;
+      grid-auto-rows: clamp(140px, 32vw, 220px);
+    }
+
+    .galeria__celda:nth-child(n) {
+      grid-column: auto;
+      grid-row: auto;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .galeria__intro { align-items: flex-start; }
+  }
+</style>

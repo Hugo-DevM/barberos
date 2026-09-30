@@ -1,0 +1,191 @@
+---
+import { Icon } from 'astro-icon/components';
+import { equipo, cifras } from '../data/barberia';
+---
+
+<section class="equipo seccion lienzo lienzo--oscuro" id="barberos">
+  <div class="envoltura">
+    <div class="encabezado revelar">
+      <span class="rotulo">Quién te atiende</span>
+      <h2>{equipo.titulo} <em>{equipo.tituloAcento}</em></h2>
+      <p>{equipo.texto}</p>
+    </div>
+
+    <ul class="equipo__rejilla">
+      {
+        equipo.barberos.map((barbero, i) => (
+          <li class="barbero revelar" data-orden={i}>
+            <figure class="barbero__foto">
+              <img
+                src={barbero.imagen}
+                width="800"
+                height="1000"
+                alt={barbero.alt}
+                loading="lazy"
+                decoding="async"
+              />
+            </figure>
+
+            <div class="barbero__datos">
+              <h3>{barbero.nombre}</h3>
+              <p class="barbero__puesto">{barbero.puesto}</p>
+              <p class="barbero__detalle">{barbero.detalle}</p>
+              <span class="barbero__antiguedad">
+                <Icon name="ph:medal" aria-hidden="true" />
+                En la silla desde {barbero.desde}
+              </span>
+            </div>
+          </li>
+        ))
+      }
+    </ul>
+
+    <dl class="cifras revelar">
+      {
+        cifras.map((cifra) => (
+          <div class="cifras__bloque">
+            <dt>
+              <span class="cifras__valor">{cifra.valor}</span>
+              {cifra.sufijo && <span class="cifras__sufijo">{cifra.sufijo}</span>}
+            </dt>
+            <dd>{cifra.texto}</dd>
+          </div>
+        ))
+      }
+    </dl>
+  </div>
+</section>
+
+<style>
+  .equipo__rejilla {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--gap);
+    margin-top: clamp(32px, 3.4vw, 54px);
+  }
+
+  .barbero {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* El arco vuelve aquí. Es la única otra sección donde aparece, y hace que
+     las cuatro fichas se lean como los cuatro espejos del local. */
+  .barbero__foto {
+    position: relative;
+    aspect-ratio: 4 / 5;
+    overflow: hidden;
+    border: 1px solid var(--linea);
+    border-radius: var(--r-arco);
+    background: var(--sup);
+    transition: border-color 0.26s var(--ease);
+  }
+
+  .barbero__foto img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s var(--ease);
+  }
+
+  .barbero:hover .barbero__foto { border-color: var(--acento); }
+  .barbero:hover .barbero__foto img { transform: scale(1.04); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .barbero:hover .barbero__foto img { transform: none; }
+  }
+
+  .barbero__datos { padding-top: 18px; }
+
+  .barbero__datos h3 {
+    font-size: 1.22rem;
+    letter-spacing: -0.024em;
+  }
+
+  .barbero__puesto {
+    margin-top: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--acento-texto);
+  }
+
+  .barbero__detalle {
+    margin-top: 10px;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--ink-2);
+  }
+
+  .barbero__antiguedad {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 12px;
+    font-size: 0.75rem;
+    color: var(--ink-3);
+  }
+
+  .barbero__antiguedad :global(svg) {
+    width: 14px;
+    height: 14px;
+    flex: none;
+    color: var(--acento);
+  }
+
+  /* -------------------------------- Cifras ------------------------------- */
+
+  .cifras {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: clamp(18px, 2.4vw, 40px);
+    margin-top: clamp(48px, 5vw, 80px);
+    padding-top: clamp(30px, 3vw, 44px);
+    border-top: 1px solid var(--linea);
+  }
+
+  .cifras__bloque dt {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+  }
+
+  .cifras__valor {
+    font-family: 'Fraunces', ui-serif, Georgia, serif;
+    font-size: clamp(2.2rem, 3.6vw, 3.1rem);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.035em;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* El sufijo se compone pequeño: solo lleva palabras, nunca los símbolos
+     que forman parte de la cifra. */
+  .cifras__sufijo {
+    font-size: 0.813rem;
+    font-weight: 600;
+    color: var(--acento-texto);
+  }
+
+  .cifras__bloque dd {
+    margin-top: 9px;
+    font-size: 0.813rem;
+    line-height: 1.55;
+    color: var(--ink-2);
+    max-width: 24ch;
+  }
+
+  /* ------------------------------- Cortes -------------------------------- */
+
+  @media (max-width: 1040px) {
+    .equipo__rejilla { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cifras { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  @media (max-width: 560px) {
+    .equipo__rejilla { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+    .barbero__foto { border-radius: 11rem 11rem var(--r-card) var(--r-card); }
+  }
+</style>

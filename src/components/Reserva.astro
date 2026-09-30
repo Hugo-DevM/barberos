@@ -1,0 +1,1988 @@
+---
+import { Icon } from 'astro-icon/components';
+import {
+  reserva,
+  servicios,
+  equipo,
+  BARBERO_INDIFERENTE,
+  contacto,
+  CTA_PRINCIPAL,
+} from '../data/barberia';
+
+const precio = new Intl.NumberFormat('es-MX', {
+  style: 'currency',
+  currency: 'MXN',
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+});
+
+const DIAS_CORTOS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
+
+/* Iniciales para las fichas de barbero. A 46 píxeles, un recorte circular de
+   una foto de trabajo es una mancha; las iniciales se leen. */
+function iniciales(nombre: string) {
+  return nombre
+    .split(' ')
+    .slice(0, 2)
+    .map((parte) => parte[0])
+    .join('')
+    .toUpperCase();
+}
+---
+
+<section class="reserva seccion lienzo lienzo--claro" id="reservar">
+  <div class="envoltura">
+    <div class="encabezado revelar">
+      <span class="rotulo">{reserva.eyebrow}</span>
+      <h2>{reserva.titulo} <em>{reserva.tituloAcento}</em></h2>
+      <p>{reserva.texto}</p>
+    </div>
+
+    <form class="flujo revelar" id="form-reserva" novalidate>
+      <!-- ---------------------------- Paso 1 ---------------------------- -->
+      <fieldset class="paso">
+        <legend><span class="paso__num">1</span> ¿Qué te hacemos?</legend>
+
+        <div class="opciones opciones--servicios">
+          {
+            servicios.map((servicio, i) => (
+              <label class="opcion opcion--servicio">
+                <input
+                  type="radio"
+                  name="servicio"
+                  value={servicio.slug}
+                  data-duracion={servicio.duracionMin}
+                  data-nombre={servicio.nombre}
+                  data-precio={servicio.precio}
+                  checked={i === 0}
+                />
+                <span class="opcion__caja">
+                  <span class="opcion__nombre">{servicio.nombre}</span>
+                  <span class="opcion__meta">
+                    <span class="opcion__precio">{precio.format(servicio.precio)}</span>
+                    <span class="opcion__punto" aria-hidden="true">·</span>
+                    <span>{servicio.duracionMin} min</span>
+                  </span>
+                </span>
+              </label>
+            ))
+          }
+        </div>
+      </fieldset>
+
+      <!-- ---------------------------- Paso 2 ---------------------------- -->
+      <fieldset class="paso">
+        <legend><span class="paso__num">2</span> ¿Con quién?</legend>
+
+        <div class="opciones opciones--barberos">
+          <label class="opcion opcion--barbero">
+            <input
+              type="radio"
+              name="barbero"
+              value=""
+              data-nombre={BARBERO_INDIFERENTE.nombre}
+              checked
+            />
+            <span class="opcion__caja">
+              <span class="opcion__avatar opcion__avatar--todos" aria-hidden="true">
+                <Icon name="ph:users-three" />
+              </span>
+              <span class="opcion__nombre">{BARBERO_INDIFERENTE.nombre}</span>
+              <span class="opcion__meta">Más horarios libres</span>
+            </span>
+          </label>
+
+          {
+            equipo.barberos.map((barbero) => (
+              <label class="opcion opcion--barbero">
+                <input
+                  type="radio"
+                  name="barbero"
+                  value={barbero.slug}
+                  data-nombre={barbero.nombre}
+                />
+                <span class="opcion__caja">
+                  <span class="opcion__avatar" aria-hidden="true">{iniciales(barbero.nombre)}</span>
+                  <span class="opcion__nombre">{barbero.nombre}</span>
+                  <span class="opcion__meta">{barbero.puesto}</span>
+                </span>
+              </label>
+            ))
+          }
+        </div>
+      </fieldset>
+
+      <!-- ---------------------------- Paso 3 ---------------------------- -->
+      <fieldset class="paso">
+        <legend><span class="paso__num">3</span> ¿Qué día?</legend>
+
+        <div class="calendario" id="calendario">
+          <div class="calendario__barra">
+            <button class="calendario__mover" type="button" id="mes-atras">
+              <Icon name="ph:caret-left" aria-hidden="true" />
+              <span class="sr-only">Mes anterior</span>
+            </button>
+            <p class="calendario__mes" id="mes-titulo">—</p>
+            <button class="calendario__mover" type="button" id="mes-adelante">
+              <Icon name="ph:caret-right" aria-hidden="true" />
+              <span class="sr-only">Mes siguiente</span>
+            </button>
+          </div>
+
+          <ol class="calendario__cabeza" aria-hidden="true">
+            {DIAS_CORTOS.map((dia) => <li>{dia}</li>)}
+          </ol>
+
+          <div
+            class="calendario__rejilla"
+            id="calendario-rejilla"
+            role="group"
+            aria-label="Elige un día"
+          >
+            <p class="calendario__cargando">Cargando disponibilidad…</p>
+          </div>
+
+          <p class="calendario__leyenda">
+            <span class="punto punto--libre" aria-hidden="true"></span> Con huecos
+            <span class="punto punto--lleno" aria-hidden="true"></span> Lleno o cerrado
+          </p>
+        </div>
+      </fieldset>
+
+      <!-- ---------------------------- Paso 4 ---------------------------- -->
+      <fieldset class="paso">
+        <legend><span class="paso__num">4</span> ¿A qué hora?</legend>
+        <div class="horarios" id="horarios">
+          <p class="horarios__vacio">Elige primero un día.</p>
+        </div>
+        <p class="sr-only" role="status" aria-live="polite" id="horarios-aviso"></p>
+      </fieldset>
+
+      <!-- ---------------------------- Paso 5 ---------------------------- -->
+      <fieldset class="paso">
+        <legend><span class="paso__num">5</span> ¿Quién eres?</legend>
+
+        <div class="campos">
+          <div class="campo">
+            <label for="r-nombre">Nombre y apellido</label>
+            <input
+              type="text"
+              id="r-nombre"
+              name="nombre"
+              autocomplete="name"
+              required
+              aria-describedby="r-nombre-error"
+            />
+            <p class="campo__error" id="r-nombre-error" data-error hidden>
+              <Icon name="ph:warning-circle" aria-hidden="true" />
+              <span></span>
+            </p>
+          </div>
+
+          <div class="campo">
+            <label for="r-telefono">Teléfono con WhatsApp</label>
+            <input
+              type="tel"
+              id="r-telefono"
+              name="telefono"
+              inputmode="tel"
+              autocomplete="tel"
+              placeholder="55 1234 5678"
+              required
+              aria-describedby="r-telefono-ayuda r-telefono-error"
+            />
+            <p class="campo__ayuda" id="r-telefono-ayuda">
+              Te mandamos el recordatorio por ahí. Diez dígitos.
+            </p>
+            <p class="campo__error" id="r-telefono-error" data-error hidden>
+              <Icon name="ph:warning-circle" aria-hidden="true" />
+              <span></span>
+            </p>
+          </div>
+
+          <div class="campo">
+            <label for="r-correo">
+              Correo electrónico
+              <span class="campo__opcional">Opcional</span>
+            </label>
+            <input
+              type="email"
+              id="r-correo"
+              name="correo"
+              autocomplete="email"
+              placeholder="tunombre@correo.com"
+              aria-describedby="r-correo-error"
+            />
+            <p class="campo__error" id="r-correo-error" data-error hidden>
+              <Icon name="ph:warning-circle" aria-hidden="true" />
+              <span></span>
+            </p>
+          </div>
+
+          <div class="campo campo--ancho">
+            <label for="r-notas">
+              Algo que debamos saber
+              <span class="campo__opcional">Opcional</span>
+            </label>
+            <textarea
+              id="r-notas"
+              name="notas"
+              rows="2"
+              maxlength="280"
+              placeholder="Vengo con mi hijo, quiero los lados más cortos que la vez pasada…"></textarea>
+          </div>
+
+          <div class="campo campo--ancho campo--casilla">
+            <label class="casilla" for="r-aviso">
+              <input type="checkbox" id="r-aviso" name="aviso" required aria-describedby="r-aviso-error" />
+              <span>
+                Acepto que la barbería use mi teléfono para confirmarme y recordarme la cita,
+                según el <a href="/aviso-de-privacidad">aviso de privacidad</a>.
+              </span>
+            </label>
+            <p class="campo__error" id="r-aviso-error" data-error hidden>
+              <Icon name="ph:warning-circle" aria-hidden="true" />
+              <span></span>
+            </p>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- --------------------------- Resumen ---------------------------- -->
+      <aside class="resumen lienzo lienzo--oscuro" aria-label="Resumen de tu cita">
+        <p class="resumen__titulo">Tu cita</p>
+
+        <dl class="resumen__lista">
+          <div>
+            <dt>Servicio</dt>
+            <dd id="res-servicio">—</dd>
+          </div>
+          <div>
+            <dt>Barbero</dt>
+            <dd id="res-barbero">—</dd>
+          </div>
+          <div>
+            <dt>Día</dt>
+            <dd id="res-dia">Sin elegir</dd>
+          </div>
+          <div>
+            <dt>Hora</dt>
+            <dd id="res-hora">Sin elegir</dd>
+          </div>
+        </dl>
+
+        <div class="resumen__total">
+          <span>Total</span>
+          <strong id="res-total">—</strong>
+        </div>
+
+        <p class="resumen__nota">
+          <Icon name="ph:check-circle" aria-hidden="true" />
+          El hueco queda apartado en cuanto confirmas. Puedes cancelar hasta 2 horas antes.
+        </p>
+      </aside>
+
+      <div class="enviar">
+        <button class="btn btn--lg" type="submit" id="enviar-reserva">
+          <span class="enviar__texto">{CTA_PRINCIPAL}</span>
+          <Icon name="ph:circle-notch" class="enviar__giro" aria-hidden="true" />
+        </button>
+
+        <p class="enviar__nota">
+          <Icon name="ph:lock-simple" aria-hidden="true" />
+          No pedimos tarjeta. Pagas en el local, al terminar.
+        </p>
+      </div>
+
+      <p class="aviso" id="reserva-aviso" role="status" aria-live="polite" hidden></p>
+    </form>
+
+    <!-- ------------------------- Confirmación -------------------------- -->
+    <div class="confirmada" id="confirmada" hidden>
+      <div class="confirmada__sello" aria-hidden="true">
+        <Icon name="ph:check" />
+      </div>
+
+      <h3>Listo, tu lugar está apartado</h3>
+      <p class="confirmada__folio">
+        Folio <strong id="conf-folio">—</strong>
+      </p>
+
+      <dl class="confirmada__lista">
+        <div>
+          <dt>Servicio</dt>
+          <dd id="conf-servicio">—</dd>
+        </div>
+        <div>
+          <dt>Barbero</dt>
+          <dd id="conf-barbero">—</dd>
+        </div>
+        <div>
+          <dt>Cuándo</dt>
+          <dd id="conf-cuando">—</dd>
+        </div>
+        <div>
+          <dt>Dónde</dt>
+          <dd>{contacto.calle}, {contacto.colonia}</dd>
+        </div>
+      </dl>
+
+      <p class="confirmada__texto" id="conf-texto"></p>
+
+      <div class="confirmada__botones">
+        <!-- Cada calendario se abre por su propia vía. Descargar un .ics y
+             tener que buscarlo en la carpeta de descargas es fricción de más
+             justo en el momento en que el cliente ya dijo que sí. -->
+        <div class="calendarios" id="calendarios">
+          <button
+            class="btn"
+            type="button"
+            id="cal-abrir"
+            aria-expanded="false"
+            aria-haspopup="true"
+            aria-controls="cal-lista"
+          >
+            <Icon name="ph:calendar-check" aria-hidden="true" />
+            Añadir a mi calendario
+            <Icon name="ph:caret-down" class="calendarios__flecha" aria-hidden="true" />
+          </button>
+
+          <div class="calendarios__lista" id="cal-lista" role="menu" hidden>
+            <a role="menuitem" id="cal-google" href="#" target="_blank" rel="noopener">
+              <Icon name="ph:google-logo" aria-hidden="true" />
+              Google Calendar
+            </a>
+            <a role="menuitem" id="cal-outlook" href="#" target="_blank" rel="noopener">
+              <Icon name="ph:microsoft-outlook-logo" aria-hidden="true" />
+              Outlook
+            </a>
+            <a role="menuitem" id="cal-ics" href="#" download="cita-navaja-filo.ics">
+              <Icon name="ph:apple-logo" aria-hidden="true" />
+              Apple Calendar y otros
+              <span class="calendarios__nota">Archivo .ics</span>
+            </a>
+          </div>
+        </div>
+
+        <a class="btn btn--linea" id="conf-whatsapp" href="#" target="_blank" rel="noopener">
+          <Icon name="ph:whatsapp-logo" aria-hidden="true" />
+          Escribirnos por WhatsApp
+        </a>
+        <button class="confirmada__otra" type="button" id="conf-otra">Agendar otra cita</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* ------------------------------ Estructura ------------------------------ */
+
+  .flujo {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    column-gap: clamp(26px, 3.2vw, 52px);
+    row-gap: clamp(26px, 2.6vw, 38px);
+    align-items: start;
+    margin-top: clamp(32px, 3.4vw, 54px);
+  }
+
+  .paso,
+  .enviar,
+  .aviso {
+    grid-column: 1;
+    border: 0;
+    padding: 0;
+    min-width: 0;
+  }
+
+  .paso legend {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    margin-bottom: 15px;
+    font-family: 'Fraunces', ui-serif, Georgia, serif;
+    font-size: 1.28rem;
+    font-weight: 700;
+    letter-spacing: -0.024em;
+    color: var(--ink);
+  }
+
+  .paso__num {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    flex: none;
+    border-radius: var(--r-pill);
+    background: var(--vino-900);
+    color: var(--arena);
+    font-family: 'Archivo', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  /* ------------------------------- Opciones ------------------------------- */
+
+  .opciones {
+    display: grid;
+    gap: 9px;
+  }
+
+  .opciones--servicios { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .opciones--barberos { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+
+  .opcion { cursor: pointer; }
+
+  /* El radio real sigue ahí y sigue recibiendo el foco: lo que se ve es la
+     caja, pero el teclado y el lector de pantalla usan el control nativo. */
+  .opcion input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .opcion__caja {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    height: 100%;
+    padding: 13px 15px;
+    border: 1px solid var(--linea-fuerte);
+    border-radius: var(--r-card);
+    background: var(--sup);
+    transition:
+      border-color 0.2s var(--ease),
+      background-color 0.2s var(--ease),
+      box-shadow 0.2s var(--ease);
+  }
+
+  .opcion:hover .opcion__caja { border-color: var(--ink-3); }
+
+  .opcion input:focus-visible + .opcion__caja {
+    outline: 2px solid var(--acento);
+    outline-offset: 2px;
+  }
+
+  .opcion input:checked + .opcion__caja {
+    border-color: var(--vino-900);
+    background: var(--vino-900);
+    box-shadow: 0 10px 24px -18px var(--velo);
+  }
+
+  .opcion__nombre {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+
+  .opcion__meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.781rem;
+    color: var(--ink-2);
+  }
+
+  .opcion__precio { font-weight: 600; color: var(--acento-texto); }
+  .opcion__punto { color: var(--ink-3); }
+
+  .opcion input:checked + .opcion__caja .opcion__nombre { color: var(--sobre-oscuro-ink); }
+  .opcion input:checked + .opcion__caja .opcion__meta { color: var(--sobre-oscuro-ink-2); }
+  .opcion input:checked + .opcion__caja .opcion__precio { color: var(--arena); }
+
+  /* Barberos: la caja se apila con el avatar arriba. */
+  .opcion--barbero .opcion__caja {
+    align-items: center;
+    text-align: center;
+    padding: 14px 10px;
+    gap: 8px;
+  }
+
+  .opcion__avatar {
+    width: 46px;
+    height: 46px;
+    border-radius: var(--r-pill);
+    background: var(--sup-2);
+    display: grid;
+    place-items: center;
+    flex: none;
+    font-size: 0.813rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--acento-texto);
+  }
+
+  .opcion input:checked + .opcion__caja .opcion__avatar {
+    background: var(--sobre-oscuro-sup);
+    color: var(--arena);
+  }
+
+  .opcion__avatar--todos { border: 1px dashed var(--linea-fuerte); background: transparent; }
+  .opcion__avatar--todos :global(svg) { width: 22px; height: 22px; color: var(--acento-texto); }
+
+  .opcion input:checked + .opcion__caja .opcion__avatar--todos {
+    border-color: var(--sobre-oscuro-linea-fuerte);
+  }
+  .opcion input:checked + .opcion__caja .opcion__avatar--todos :global(svg) { color: var(--arena); }
+
+  .opcion--barbero .opcion__nombre { font-size: 0.813rem; }
+  .opcion--barbero .opcion__meta { font-size: 0.688rem; }
+
+  /* ------------------------------ Calendario ------------------------------ */
+
+  .calendario {
+    padding: clamp(14px, 1.4vw, 20px);
+    border: 1px solid var(--linea-fuerte);
+    border-radius: var(--r-card);
+    background: var(--sup);
+  }
+
+  .calendario__barra {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .calendario__mes {
+    font-size: 0.938rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .calendario__mover {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--linea-fuerte);
+    color: var(--ink);
+    cursor: pointer;
+    transition: background-color 0.18s var(--ease), border-color 0.18s var(--ease);
+  }
+
+  .calendario__mover:hover:not([disabled]) {
+    background: var(--sup-2);
+    border-color: var(--ink-3);
+  }
+
+  .calendario__mover[disabled] { opacity: 0.35; cursor: not-allowed; }
+  .calendario__mover :global(svg) { width: 15px; height: 15px; }
+
+  .calendario__cabeza,
+  .calendario__rejilla {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .calendario__cabeza li {
+    padding-block: 4px;
+    text-align: center;
+    font-size: 0.688rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  .calendario__rejilla { margin-top: 4px; min-height: 180px; }
+
+  .calendario__leyenda {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--linea);
+    font-size: 0.719rem;
+    color: var(--ink-2);
+  }
+
+  .punto {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: none;
+  }
+
+  .punto--libre { background: var(--acento); }
+  .punto--lleno { background: var(--ink-3); margin-left: 12px; }
+
+  /* --------------------------------- Campos -------------------------------- */
+
+  .campos {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 13px;
+  }
+
+  .campo { display: grid; gap: 6px; align-content: start; }
+  .campo--ancho { grid-column: 1 / -1; }
+
+  .campo label {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 0.813rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .campo__opcional {
+    font-size: 0.719rem;
+    font-weight: 500;
+    color: var(--ink-3);
+  }
+
+  .campo input,
+  .campo textarea {
+    width: 100%;
+    padding: 11px 14px;
+    border-radius: var(--r-inner);
+    border: 1px solid var(--linea-fuerte);
+    background: var(--sup);
+    color: var(--ink);
+    font-size: 0.925rem;
+    resize: vertical;
+    transition: border-color 0.18s var(--ease), box-shadow 0.18s var(--ease);
+  }
+
+  /* Texto sustituto separado del valor escrito, pero por encima de 4.5:1. */
+  .campo ::placeholder { color: var(--ink-2); opacity: 1; }
+
+  .campo input:hover,
+  .campo textarea:hover { border-color: var(--ink-3); }
+
+  .campo input:focus-visible,
+  .campo textarea:focus-visible {
+    outline: none;
+    border-color: var(--acento);
+    box-shadow: 0 0 0 3px var(--acento-tenue);
+  }
+
+  .campo[data-invalido] input,
+  .campo[data-invalido] textarea {
+    border-color: var(--alerta);
+    background: var(--alerta-tenue);
+  }
+
+  .campo__ayuda { font-size: 0.75rem; line-height: 1.4; color: var(--ink-2); }
+
+  .campo__error {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--alerta);
+  }
+
+  .campo__error[hidden] { display: none; }
+  .campo__error :global(svg) { width: 14px; height: 14px; flex: none; }
+
+  .casilla {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 0.813rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+
+  .casilla input {
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    flex: none;
+    accent-color: var(--vino-900);
+    cursor: pointer;
+  }
+
+  .casilla a { color: var(--acento-texto); text-underline-offset: 2px; }
+
+  .campo--casilla[data-invalido] .casilla { color: var(--alerta); }
+
+  /* -------------------------------- Resumen -------------------------------- */
+
+  .resumen {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    position: sticky;
+    top: calc(var(--alto-cabecera) + 18px);
+    padding: clamp(20px, 2vw, 28px);
+    border-radius: var(--r-card);
+    background: var(--vino-900);
+    color: var(--sobre-oscuro-ink);
+  }
+
+  .resumen__titulo {
+    font-family: 'Fraunces', ui-serif, Georgia, serif;
+    font-size: 1.28rem;
+    font-weight: 700;
+    letter-spacing: -0.024em;
+  }
+
+  .resumen__lista {
+    display: grid;
+    gap: 13px;
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid var(--sobre-oscuro-linea);
+  }
+
+  .resumen__lista > div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
+  .resumen__lista dt {
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--sobre-oscuro-ink-3);
+    flex: none;
+  }
+
+  .resumen__lista dd {
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-align: right;
+    line-height: 1.4;
+  }
+
+  .resumen__lista dd[data-vacio='true'] { color: var(--sobre-oscuro-ink-3); font-weight: 400; }
+
+  .resumen__total {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--sobre-oscuro-linea);
+    font-size: 0.813rem;
+    color: var(--sobre-oscuro-ink-2);
+  }
+
+  /* El precio va en la sans, no en Fraunces: el "3" del corte display tiene
+     el remate tan cerrado que a este tamaño se confunde con un "5", y un
+     precio mal leído es el peor sitio donde ahorrarse una ambigüedad. */
+  .resumen__total strong {
+    font-family: 'Archivo', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--arena);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .resumen__nota {
+    display: flex;
+    gap: 8px;
+    margin-top: 18px;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--sobre-oscuro-ink-2);
+  }
+
+  .resumen__nota :global(svg) {
+    width: 15px;
+    height: 15px;
+    flex: none;
+    margin-top: 1px;
+    color: var(--arena);
+  }
+
+  /* -------------------------------- Enviar --------------------------------- */
+
+  /* El botón no ocupa todo el ancho de la columna. A 700 píxeles se convertía
+     en una barra estirada, y el radio de píldora lo empeoraba. Con ancho
+     propio recupera su proporción, y la nota de al lado ocupa el resto del
+     renglón con algo que vale la pena leer justo antes de confirmar. */
+  .enviar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+    margin-top: 4px;
+  }
+
+  #enviar-reserva { min-width: 15rem; }
+
+  .enviar__nota {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.813rem;
+    line-height: 1.45;
+    color: var(--ink-2);
+  }
+
+  .enviar__nota :global(svg) {
+    width: 16px;
+    height: 16px;
+    flex: none;
+    color: var(--acento-texto);
+  }
+
+  .enviar__giro { display: none; }
+
+  #enviar-reserva[data-cargando='true'] .enviar__giro {
+    display: block;
+    animation: girar 0.9s linear infinite;
+  }
+
+  @keyframes girar {
+    to { transform: rotate(360deg); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #enviar-reserva[data-cargando='true'] .enviar__giro { animation-duration: 2.4s; }
+  }
+
+  .aviso {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 13px 16px;
+    border-radius: var(--r-inner);
+    font-size: 0.813rem;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  .aviso[hidden] { display: none; }
+  .aviso[data-tono='error'] { background: var(--alerta-tenue); color: var(--alerta); }
+  .aviso[data-tono='ok'] { background: var(--ok-tenue); color: var(--ok); }
+
+  /* ----------------------------- Confirmación ------------------------------ */
+
+  .confirmada {
+    max-width: 44rem;
+    margin: clamp(32px, 3.4vw, 54px) auto 0;
+    padding: clamp(26px, 3vw, 44px);
+    border: 1px solid var(--linea-fuerte);
+    border-radius: var(--r-card);
+    background: var(--sup);
+    text-align: center;
+  }
+
+  .confirmada[hidden] { display: none; }
+
+  .confirmada__sello {
+    display: grid;
+    place-items: center;
+    width: 54px;
+    height: 54px;
+    margin: 0 auto 20px;
+    border-radius: var(--r-pill);
+    background: var(--vino-900);
+  }
+
+  .confirmada__sello :global(svg) { width: 26px; height: 26px; color: var(--arena); }
+
+  .confirmada h3 { font-size: clamp(1.6rem, 2.6vw, 2.1rem); }
+
+  .confirmada__folio {
+    margin-top: 10px;
+    font-size: 0.875rem;
+    color: var(--ink-2);
+  }
+
+  .confirmada__folio strong {
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--acento-texto);
+  }
+
+  .confirmada__lista {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 26px;
+    padding-top: 22px;
+    border-top: 1px solid var(--linea);
+    text-align: left;
+  }
+
+  .confirmada__lista dt {
+    font-size: 0.688rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  .confirmada__lista dd {
+    margin-top: 5px;
+    font-size: 0.925rem;
+    font-weight: 500;
+    line-height: 1.45;
+  }
+
+  .confirmada__texto {
+    margin-top: 22px;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--ink-2);
+  }
+
+  .confirmada__botones {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 26px;
+  }
+
+  /* ------------------------ Menú de calendarios ---------------------------- */
+
+  .calendarios { position: relative; }
+
+  .calendarios__flecha {
+    width: 15px !important;
+    height: 15px !important;
+    transition: transform 0.2s var(--ease);
+  }
+
+  #cal-abrir[aria-expanded='true'] .calendarios__flecha { transform: rotate(180deg); }
+
+  .calendarios__lista {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    display: grid;
+    gap: 2px;
+    min-width: 15rem;
+    padding: 6px;
+    border: 1px solid var(--linea-fuerte);
+    border-radius: var(--r-card);
+    background: var(--sup);
+    box-shadow: var(--sombra-md);
+    text-align: left;
+  }
+
+  .calendarios__lista[hidden] { display: none; }
+
+  .calendarios__lista a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 13px;
+    border-radius: var(--r-inner);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--ink);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .calendarios__lista a:hover { background: var(--sup-2); }
+
+  .calendarios__lista :global(svg) {
+    width: 18px;
+    height: 18px;
+    flex: none;
+    color: var(--acento-texto);
+  }
+
+  .calendarios__nota {
+    margin-left: auto;
+    padding-left: 10px;
+    font-size: 0.719rem;
+    font-weight: 400;
+    color: var(--ink-3);
+  }
+
+  .confirmada__otra {
+    width: 100%;
+    margin-top: 6px;
+    font-size: 0.813rem;
+    font-weight: 600;
+    color: var(--ink-2);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
+
+  .confirmada__otra:hover { color: var(--ink); }
+
+  /* --------------------------------- Cortes -------------------------------- */
+
+  @media (max-width: 980px) {
+    /* En una columna el resumen cae justo antes del botón de enviar, que es
+       donde el orden del documento ya lo había puesto. */
+    .flujo { grid-template-columns: minmax(0, 1fr); }
+    .resumen { grid-column: 1; grid-row: auto; position: static; }
+  }
+
+  @media (max-width: 720px) {
+    .opciones--barberos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+
+  @media (max-width: 560px) {
+    .opciones--servicios { grid-template-columns: minmax(0, 1fr); }
+    .opciones--barberos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .campos { grid-template-columns: minmax(0, 1fr); }
+    .confirmada__lista { grid-template-columns: minmax(0, 1fr); }
+    .confirmada__botones .btn { width: 100%; }
+
+    /* En una columna estrecha el botón sí gana ocupándola entera: ahí la
+       proporción es la de un botón normal, no la de una barra. */
+    .enviar { display: grid; justify-items: stretch; }
+    #enviar-reserva { width: 100%; min-width: 0; }
+    .enviar__nota { justify-content: center; text-align: center; }
+  }
+</style>
+
+<style is:global>
+  /* --------------------------------------------------------------------------
+     Elementos que crea el JavaScript
+
+     Astro añade su atributo de ámbito (data-astro-cid-…) solo a los nodos que
+     están en la plantilla. Los días del calendario y las fichas de hora nacen
+     en el navegador, así que el CSS con ámbito nunca los alcanzaría y saldrían
+     sin estilo. Van aquí, sin ámbito, pero colgando de los identificadores del
+     módulo: fuera de #calendario-rejilla y #horarios estas reglas no existen.
+     -------------------------------------------------------------------------- */
+
+  #calendario-rejilla .calendario__cargando {
+    grid-column: 1 / -1;
+    padding-block: 42px;
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--ink-2);
+  }
+
+  #calendario-rejilla .dia {
+    position: relative;
+    /* Algo más anchas que altas: a cuadro perfecto el calendario se come
+       media pantalla sin ganar nada en legibilidad. */
+    aspect-ratio: 1 / 0.82;
+    display: grid;
+    place-items: center;
+    border-radius: var(--r-inner);
+    border: 1px solid transparent;
+    font-size: 0.875rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    cursor: pointer;
+    transition:
+      background-color 0.16s var(--ease),
+      color 0.16s var(--ease),
+      border-color 0.16s var(--ease);
+  }
+
+  #calendario-rejilla .dia--hueco { visibility: hidden; }
+
+  /* Un día con hueco tiene que verse pulsable de un vistazo. El borde solo
+     no basta sobre hueso: lleva además fondo propio y el punto de abajo. */
+  #calendario-rejilla .dia--libre {
+    border-color: var(--linea-fuerte);
+    background: var(--sup-2);
+    font-weight: 600;
+  }
+
+  #calendario-rejilla .dia--libre:hover {
+    background: var(--vino-900);
+    color: var(--sobre-oscuro-ink);
+    border-color: var(--vino-900);
+  }
+
+  /* El punto marca los días con hueco sin depender solo del color del borde. */
+  #calendario-rejilla .dia--libre::after {
+    content: '';
+    position: absolute;
+    bottom: 5px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--acento);
+  }
+
+  #calendario-rejilla .dia[disabled] {
+    color: var(--ink-3);
+    cursor: not-allowed;
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+  }
+
+  #calendario-rejilla .dia--hoy { font-weight: 700; }
+
+  /* El día elegido va con el acento del lienzo claro, no con la arena: sobre
+     hueso, la arena apenas se despega del fondo. */
+  #calendario-rejilla .dia--elegido,
+  #calendario-rejilla .dia--elegido:hover {
+    background: var(--acento);
+    border-color: var(--acento);
+    color: var(--acento-ink);
+    font-weight: 700;
+  }
+
+  #calendario-rejilla .dia--elegido::after { background: var(--acento-ink); }
+
+  /* El contenedor es un bloque normal y la rejilla va dentro. Con
+     repeat(auto-fill, …) un `grid-column: 1 / -1` se queda en una sola
+     columna, así que el mensaje de "elige un día" salía estrujado. */
+  #horarios .horarios__rejilla {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+    gap: 8px;
+  }
+
+  #horarios .horarios__vacio,
+  #horarios .horarios__nada {
+    padding: 22px;
+    border: 1px dashed var(--linea-fuerte);
+    border-radius: var(--r-card);
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--ink-2);
+  }
+
+  #horarios .hora {
+    padding: 11px 8px;
+    border: 1px solid var(--linea-fuerte);
+    border-radius: var(--r-inner);
+    background: var(--sup);
+    font-size: 0.875rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    cursor: pointer;
+    transition:
+      background-color 0.16s var(--ease),
+      color 0.16s var(--ease),
+      border-color 0.16s var(--ease);
+  }
+
+  #horarios .hora:hover:not([disabled]) {
+    border-color: var(--vino-900);
+    background: var(--sup-2);
+  }
+
+  #horarios .hora[aria-pressed='true'] {
+    background: var(--vino-900);
+    border-color: var(--vino-900);
+    color: var(--sobre-oscuro-ink);
+    font-weight: 600;
+  }
+
+  /* Hora ya reservada: se ve, para que se note que la barbería está llena a
+     esa hora, pero no se puede elegir. El tachado la distingue sin depender
+     solo del color. */
+  #horarios .hora[disabled] {
+    background: transparent;
+    border-style: dashed;
+    border-color: var(--linea);
+    color: var(--ink-3);
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+    cursor: not-allowed;
+  }
+
+  #horarios .horarios__pie {
+    margin-top: 11px;
+    font-size: 0.75rem;
+    color: var(--ink-2);
+  }
+
+  @media (max-width: 560px) {
+    #horarios .horarios__rejilla {
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    }
+  }
+</style>
+
+<script>
+  import {
+    cargarAgenda,
+    reservar,
+    huecosDelDia,
+    diaTieneHuecos,
+    ahoraEnBarberia,
+    instanteUtc,
+    fechaLegible,
+    horaLegible,
+    partesFecha,
+    aFecha,
+    diaSemana,
+    diasEnMes,
+    sumarDias,
+    ErrorReserva,
+    HAY_SUPABASE,
+    type Agenda,
+  } from '../lib/reservas';
+  import { reserva, contacto, marca, servicios as catalogo } from '../data/barberia';
+
+  const formulario = document.getElementById('form-reserva') as HTMLFormElement | null;
+  if (formulario) iniciar(formulario);
+
+  function iniciar(formulario: HTMLFormElement) {
+    /* ------------------------------- Estado ------------------------------- */
+
+    const hoy = ahoraEnBarberia().fecha;
+    const ultimoDia = sumarDias(hoy, reserva.diasDeAntelacion);
+
+    let agenda: Agenda | null = null;
+    let mesVisible = { anio: partesFecha(hoy).anio, mes: partesFecha(hoy).mes };
+    let diaElegido: string | null = null;
+    let horaElegida: string | null = null;
+
+    const dinero = new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+
+    const nombreMes = new Intl.DateTimeFormat('es-MX', {
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+
+    /* ------------------------------- Nodos -------------------------------- */
+
+    const rejilla = document.getElementById('calendario-rejilla')!;
+    const tituloMes = document.getElementById('mes-titulo')!;
+    const atras = document.getElementById('mes-atras') as HTMLButtonElement;
+    const adelante = document.getElementById('mes-adelante') as HTMLButtonElement;
+    const cajaHorarios = document.getElementById('horarios')!;
+    const avisoHorarios = document.getElementById('horarios-aviso')!;
+    const aviso = document.getElementById('reserva-aviso')!;
+    const boton = document.getElementById('enviar-reserva') as HTMLButtonElement;
+    const confirmada = document.getElementById('confirmada')!;
+
+    const resumen = {
+      servicio: document.getElementById('res-servicio')!,
+      barbero: document.getElementById('res-barbero')!,
+      dia: document.getElementById('res-dia')!,
+      hora: document.getElementById('res-hora')!,
+      total: document.getElementById('res-total')!,
+    };
+
+    function servicioElegido() {
+      const radio = formulario.querySelector<HTMLInputElement>('input[name="servicio"]:checked')!;
+      return {
+        slug: radio.value,
+        nombre: radio.dataset.nombre!,
+        precio: Number(radio.dataset.precio),
+        duracion: Number(radio.dataset.duracion),
+      };
+    }
+
+    function barberoElegido() {
+      const radio = formulario.querySelector<HTMLInputElement>('input[name="barbero"]:checked')!;
+      return {
+        slug: radio.value || null,
+        nombre: radio.dataset.nombre!,
+      };
+    }
+
+    /* ------------------------------- Analítica ----------------------------- */
+
+    /* El embudo de reserva en dos eventos: uno cuando alguien empieza a
+       llenarlo de verdad y otro cuando la cita queda hecha. Sin el primero,
+       una caída en las reservas no distingue entre "llega menos gente" y "la
+       gente se atora a medio formulario".
+
+       Se llama con `?.` porque el ayudante solo existe si hay PUBLIC_GA_ID:
+       sin analítica configurada el formulario funciona igual. */
+    let inicioMedido = false;
+
+    function medirInicio() {
+      if (inicioMedido) return;
+      inicioMedido = true;
+      window.medirEvento?.('inicio_reserva', { servicio: servicioElegido().nombre });
+    }
+
+    formulario.addEventListener('input', medirInicio, { once: true });
+
+    /* ------------------------------ Calendario ----------------------------- */
+
+    function pintarCalendario() {
+      const { anio, mes } = mesVisible;
+      // "septiembre de 2026" -> "Septiembre de 2026". Con text-transform:
+      // capitalize el "de" también saldría en mayúscula.
+      const etiqueta = nombreMes.format(new Date(Date.UTC(anio, mes - 1, 1)));
+      tituloMes.textContent = etiqueta.charAt(0).toUpperCase() + etiqueta.slice(1);
+
+      // Los meses fuera de la ventana de agenda no se pueden alcanzar.
+      const primeroDelMes = aFecha(anio, mes, 1);
+      const ultimoDelMes = aFecha(anio, mes, diasEnMes(anio, mes));
+      atras.disabled = primeroDelMes <= hoy;
+      adelante.disabled = ultimoDelMes >= ultimoDia;
+
+      rejilla.replaceChildren();
+
+      if (!agenda) {
+        const cargando = document.createElement('p');
+        cargando.className = 'calendario__cargando';
+        cargando.textContent = 'Cargando disponibilidad…';
+        rejilla.append(cargando);
+        return;
+      }
+
+      const servicio = servicioElegido();
+      const barbero = barberoElegido();
+
+      // La rejilla empieza en lunes: diaSemana() devuelve 0 para domingo.
+      const desfase = (diaSemana(primeroDelMes) + 6) % 7;
+      for (let i = 0; i < desfase; i++) {
+        const hueco = document.createElement('span');
+        hueco.className = 'dia dia--hueco';
+        hueco.setAttribute('aria-hidden', 'true');
+        rejilla.append(hueco);
+      }
+
+      for (let numero = 1; numero <= diasEnMes(anio, mes); numero++) {
+        const fecha = aFecha(anio, mes, numero);
+        const celda = document.createElement('button');
+        celda.type = 'button';
+        celda.className = 'dia';
+        celda.textContent = String(numero);
+        celda.dataset.fecha = fecha;
+
+        const dentroDeVentana = fecha >= hoy && fecha <= ultimoDia;
+        const libre = dentroDeVentana && diaTieneHuecos(agenda, fecha, servicio.duracion, barbero.slug);
+
+        if (fecha === hoy) celda.classList.add('dia--hoy');
+
+        if (!libre) {
+          celda.disabled = true;
+          celda.setAttribute(
+            'aria-label',
+            `${fechaLegible(fecha)}, sin horarios disponibles`
+          );
+        } else {
+          celda.classList.add('dia--libre');
+          celda.setAttribute('aria-label', fechaLegible(fecha));
+          celda.addEventListener('click', () => elegirDia(fecha));
+        }
+
+        if (fecha === diaElegido) {
+          celda.classList.add('dia--elegido');
+          celda.setAttribute('aria-current', 'date');
+        }
+
+        rejilla.append(celda);
+      }
+    }
+
+    function elegirDia(fecha: string) {
+      medirInicio();
+      diaElegido = fecha;
+      horaElegida = null;
+      pintarCalendario();
+      pintarHorarios();
+      actualizarResumen();
+    }
+
+    /* ------------------------------- Horarios ------------------------------ */
+
+    function pintarHorarios() {
+      cajaHorarios.replaceChildren();
+
+      if (!diaElegido || !agenda) {
+        const vacio = document.createElement('p');
+        vacio.className = 'horarios__vacio';
+        vacio.textContent = 'Elige primero un día.';
+        cajaHorarios.append(vacio);
+        return;
+      }
+
+      const servicio = servicioElegido();
+      const barbero = barberoElegido();
+      const huecos = huecosDelDia(agenda, diaElegido, servicio.duracion, barbero.slug);
+
+      if (huecos.length === 0) {
+        const nada = document.createElement('p');
+        nada.className = 'horarios__nada';
+        nada.textContent = 'Ese día ya no queda nada. Prueba con otro.';
+        cajaHorarios.append(nada);
+        avisoHorarios.textContent = `Sin horarios libres el ${fechaLegible(diaElegido)}.`;
+        return;
+      }
+
+      const rejillaHoras = document.createElement('div');
+      rejillaHoras.className = 'horarios__rejilla';
+
+      huecos.forEach((hueco) => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'hora';
+        chip.textContent = horaLegible(hueco.hora);
+
+        if (hueco.libres === 0) {
+          // Se muestra, pero no se puede elegir. El lector de pantalla tiene
+          // que oír el motivo, no solo encontrarse un botón apagado.
+          chip.disabled = true;
+          chip.setAttribute('aria-label', `${horaLegible(hueco.hora)}, ya reservado`);
+          chip.title = 'Ya reservado';
+        } else {
+          chip.setAttribute('aria-pressed', String(hueco.hora === horaElegida));
+          chip.addEventListener('click', () => {
+            horaElegida = hueco.hora;
+            pintarHorarios();
+            actualizarResumen();
+          });
+        }
+
+        rejillaHoras.append(chip);
+      });
+
+      cajaHorarios.append(rejillaHoras);
+
+      const libres = huecos.filter((h) => h.libres > 0).length;
+      const pie = document.createElement('p');
+      pie.className = 'horarios__pie';
+      pie.textContent =
+        libres === 0
+          ? 'Todas las horas de ese día están tomadas.'
+          : `${libres} de ${huecos.length} horas libres. Las tachadas ya están reservadas.`;
+      cajaHorarios.append(pie);
+
+      avisoHorarios.textContent = `${libres} horarios libres de ${huecos.length} el ${fechaLegible(diaElegido)}.`;
+    }
+
+    /* ------------------------------- Resumen ------------------------------- */
+
+    function actualizarResumen() {
+      const servicio = servicioElegido();
+      const barbero = barberoElegido();
+
+      resumen.servicio.textContent = `${servicio.nombre} · ${servicio.duracion} min`;
+      resumen.barbero.textContent = barbero.nombre;
+      resumen.total.textContent = dinero.format(servicio.precio);
+
+      resumen.dia.textContent = diaElegido ? fechaLegible(diaElegido) : 'Sin elegir';
+      resumen.dia.dataset.vacio = String(!diaElegido);
+
+      resumen.hora.textContent = horaElegida ? horaLegible(horaElegida) : 'Sin elegir';
+      resumen.hora.dataset.vacio = String(!horaElegida);
+    }
+
+    /* -------------------------- Carga de la agenda ------------------------- */
+
+    let ultimaCarga = 0;
+
+    async function traerAgenda() {
+      try {
+        agenda = await cargarAgenda(hoy, ultimoDia);
+        ultimaCarga = Date.now();
+      } catch {
+        mostrarAviso(
+          'error',
+          `No pudimos cargar la agenda. Recarga la página o llámanos al ${contacto.telefono}.`
+        );
+        agenda = { horarios: [], barberos: [], ocupados: [], bloqueos: [] };
+      }
+      pintarCalendario();
+      pintarHorarios();
+    }
+
+    /* Comprueba que lo ya elegido siga existiendo tras recargar la agenda.
+       Si el hueco se lo llevó alguien, se limpia y se avisa, en vez de dejar
+       al cliente escribir sus datos para que el servidor lo rechace al final. */
+    function revalidarSeleccion() {
+      if (!agenda) return;
+      const servicio = servicioElegido();
+      const barbero = barberoElegido();
+
+      if (diaElegido && !diaTieneHuecos(agenda, diaElegido, servicio.duracion, barbero.slug)) {
+        diaElegido = null;
+        horaElegida = null;
+        mostrarAviso('error', 'Ese día se llenó mientras tenías la página abierta. Elige otro.');
+        return;
+      }
+
+      if (diaElegido && horaElegida) {
+        const sigueLibre = huecosDelDia(
+          agenda,
+          diaElegido,
+          servicio.duracion,
+          barbero.slug
+        ).some((hueco) => hueco.hora === horaElegida && hueco.libres > 0);
+
+        if (!sigueLibre) {
+          horaElegida = null;
+          mostrarAviso('error', 'Alguien apartó ese horario hace un momento. Elige otro.');
+        }
+      }
+    }
+
+    /* La agenda se pide al cargar la página. Si alguien deja la pestaña
+       abierta y vuelve media hora después, lo que ve puede haber dejado de
+       ser cierto: al recuperar el foco se vuelve a pedir. El servidor manda
+       de todos modos, pero más vale que el calendario no mienta entretanto. */
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!confirmada.hidden) return; // ya reservó: no tocar la confirmación
+      if (Date.now() - ultimaCarga < 60_000) return;
+
+      await traerAgenda();
+      revalidarSeleccion();
+      pintarCalendario();
+      pintarHorarios();
+      actualizarResumen();
+    });
+
+    /* ------------------------------ Validación ----------------------------- */
+
+    const reglas: Record<string, (valor: string) => string | null> = {
+      nombre: (v) => {
+        if (!v.trim()) return 'Escribe tu nombre.';
+        if (v.trim().length < 3) return 'El nombre parece demasiado corto.';
+        return null;
+      },
+      telefono: (v) => {
+        const digitos = v.replace(/\D/g, '');
+        if (!digitos) return 'Necesitamos un teléfono para confirmarte.';
+        if (digitos.length < 10) return 'Faltan dígitos. Escribe los 10 del número.';
+        if (digitos.length > 13) return 'Ese número tiene dígitos de más.';
+        return null;
+      },
+      correo: (v) => {
+        if (!v.trim()) return null;
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim())) return 'Revisa el correo, algo no cuadra.';
+        return null;
+      },
+      aviso: (v) => (v === 'on' ? null : 'Necesitamos tu autorización para confirmarte.'),
+    };
+
+    function valorDe(control: HTMLInputElement | HTMLTextAreaElement) {
+      if (control instanceof HTMLInputElement && control.type === 'checkbox') {
+        return control.checked ? 'on' : '';
+      }
+      return control.value;
+    }
+
+    function pintarError(control: HTMLElement, mensaje: string | null) {
+      const campo = control.closest<HTMLElement>('.campo');
+      if (!campo) return;
+      const caja = campo.querySelector<HTMLElement>('[data-error]');
+      const texto = caja?.querySelector('span');
+
+      if (mensaje) {
+        campo.setAttribute('data-invalido', '');
+        control.setAttribute('aria-invalid', 'true');
+        if (caja && texto) {
+          texto.textContent = mensaje;
+          caja.hidden = false;
+        }
+      } else {
+        campo.removeAttribute('data-invalido');
+        control.removeAttribute('aria-invalid');
+        if (caja) caja.hidden = true;
+      }
+    }
+
+    function validar(control: HTMLInputElement | HTMLTextAreaElement) {
+      const regla = reglas[control.name];
+      if (!regla) return true;
+      const mensaje = regla(valorDe(control));
+      pintarError(control, mensaje);
+      return mensaje === null;
+    }
+
+    const controles = Array.from(
+      formulario.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+        '#r-nombre, #r-telefono, #r-correo, #r-aviso'
+      )
+    );
+
+    controles.forEach((control) => {
+      // Se valida al salir del campo, no mientras se escribe: corregir a
+      // media palabra produce errores que aparecen y desaparecen solos.
+      control.addEventListener('blur', () => validar(control));
+      control.addEventListener('change', () => {
+        if (control.closest('.campo')?.hasAttribute('data-invalido')) validar(control);
+      });
+    });
+
+    /* -------------------------------- Avisos ------------------------------- */
+
+    function mostrarAviso(tono: 'ok' | 'error', mensaje: string) {
+      aviso.dataset.tono = tono;
+      aviso.textContent = mensaje;
+      aviso.hidden = false;
+    }
+
+    function ocultarAviso() {
+      aviso.hidden = true;
+    }
+
+    function cargando(activo: boolean) {
+      boton.dataset.cargando = String(activo);
+      boton.disabled = activo;
+      const texto = boton.querySelector('.enviar__texto');
+      if (texto) texto.textContent = activo ? 'Apartando tu lugar' : 'Reservar cita';
+    }
+
+    /* ------------------------------ Confirmación ---------------------------- */
+
+    /* Archivo .ics con hora local flotante: sin TZID ni Z, los calendarios lo
+       interpretan en la zona del dispositivo, que para una cita presencial es
+       justo lo que se quiere. */
+    function archivoCalendario(datos: {
+      folio: string;
+      servicio: string;
+      barbero: string;
+      fecha: string;
+      hora: string;
+      duracion: number;
+    }) {
+      /* Marca de tiempo absoluta (acaba en Z). No se usa la hora "suelta"
+         porque quien reserve desde otro huso vería la cita a esa hora de su
+         zona, no de la nuestra. */
+      const sello = (instante: Date) =>
+        instante.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+
+      const escapar = (t: string) => t.replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n');
+
+      /* RFC 5545: ninguna línea puede pasar de 75 octetos. Las que se pasan se
+         parten y la continuación arranca con un espacio. Se mide en bytes UTF-8
+         y se corta por carácter, para no dejar media eñe en cada trozo.
+         Sin esto, la dirección del local rompe importaciones estrictas. */
+      const plegar = (linea: string) => {
+        const medir = (t: string) => new TextEncoder().encode(t).length;
+        if (medir(linea) <= 75) return linea;
+
+        const trozos: string[] = [];
+        let actual = '';
+        let tope = 75;
+
+        for (const caracter of linea) {
+          if (medir(actual + caracter) > tope) {
+            trozos.push(actual);
+            actual = caracter;
+            tope = 74; // la continuación gasta un octeto en el espacio inicial
+          } else {
+            actual += caracter;
+          }
+        }
+        trozos.push(actual);
+
+        return trozos.join('\r\n ');
+      };
+
+      const lineas = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        `PRODID:-//${marca.nombre}//Reservas//ES`,
+        'CALSCALE:GREGORIAN',
+        'BEGIN:VEVENT',
+        `UID:${datos.folio}@${marca.dominio}`,
+        `DTSTAMP:${sello(new Date())}`,
+        `DTSTART:${sello(instanteUtc(datos.fecha, datos.hora))}`,
+        `DTEND:${sello(instanteUtc(datos.fecha, datos.hora, datos.duracion))}`,
+        `SUMMARY:${escapar(`${datos.servicio} en ${marca.nombre}`)}`,
+        `LOCATION:${escapar(`${contacto.calle}, ${contacto.colonia}, ${contacto.cp}`)}`,
+        `DESCRIPTION:${escapar(`Folio ${datos.folio}. Te atiende ${datos.barbero}. Tel. ${contacto.telefono}`)}`,
+        'BEGIN:VALARM',
+        'TRIGGER:-PT2H',
+        'ACTION:DISPLAY',
+        `DESCRIPTION:${escapar(`Tu cita en ${marca.nombre} es en 2 horas`)}`,
+        'END:VALARM',
+        'END:VEVENT',
+        'END:VCALENDAR',
+      ];
+
+      return URL.createObjectURL(
+        new Blob([lineas.map(plegar).join('\r\n')], { type: 'text/calendar;charset=utf-8' })
+      );
+    }
+
+    /* Enlaces directos a los calendarios web. Google y Outlook aceptan el
+       evento en la propia URL, así que desde la computadora se abre la pestaña
+       con la cita ya cargada y solo hay que darle a guardar: nada que
+       descargar ni que buscar después en la carpeta de descargas. */
+    function enlacesCalendario(datos: {
+      folio: string;
+      servicio: string;
+      barbero: string;
+      fecha: string;
+      hora: string;
+      duracion: number;
+    }) {
+      const inicio = instanteUtc(datos.fecha, datos.hora);
+      const fin = instanteUtc(datos.fecha, datos.hora, datos.duracion);
+      const compacto = (d: Date) =>
+        d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+
+      const titulo = `${datos.servicio} en ${marca.nombre}`;
+      const lugar = `${contacto.calle}, ${contacto.colonia}, ${contacto.cp}`;
+      const detalle =
+        `Folio ${datos.folio}. Te atiende ${datos.barbero}. ` +
+        `Tel. ${contacto.telefono}`;
+
+      const google = new URL('https://calendar.google.com/calendar/render');
+      google.searchParams.set('action', 'TEMPLATE');
+      google.searchParams.set('text', titulo);
+      google.searchParams.set('dates', `${compacto(inicio)}/${compacto(fin)}`);
+      google.searchParams.set('details', detalle);
+      google.searchParams.set('location', lugar);
+
+      const outlook = new URL('https://outlook.live.com/calendar/0/deeplink/compose');
+      outlook.searchParams.set('path', '/calendar/action/compose');
+      outlook.searchParams.set('rru', 'addevent');
+      outlook.searchParams.set('subject', titulo);
+      outlook.searchParams.set('startdt', inicio.toISOString());
+      outlook.searchParams.set('enddt', fin.toISOString());
+      outlook.searchParams.set('body', detalle);
+      outlook.searchParams.set('location', lugar);
+
+      return { google: google.href, outlook: outlook.href };
+    }
+
+    let urlCalendario: string | null = null;
+
+    function mostrarConfirmacion(datos: {
+      folio: string;
+      servicio: string;
+      barbero: string;
+      fecha: string;
+      hora: string;
+      duracion: number;
+    }) {
+      document.getElementById('conf-folio')!.textContent = datos.folio;
+      document.getElementById('conf-servicio')!.textContent = datos.servicio;
+      document.getElementById('conf-barbero')!.textContent = datos.barbero;
+      document.getElementById('conf-cuando')!.textContent =
+        `${fechaLegible(datos.fecha)}, ${horaLegible(datos.hora)}`;
+
+      document.getElementById('conf-texto')!.textContent = HAY_SUPABASE
+        ? 'Te mandamos un recordatorio por WhatsApp el día anterior. Si te surge algo, avísanos con dos horas de anticipación y liberamos el lugar.'
+        : 'Esta demostración guarda la cita solo en este navegador. Con Supabase conectado, la cita llegaría al panel de la barbería al instante.';
+
+      const { google, outlook } = enlacesCalendario(datos);
+      (document.getElementById('cal-google') as HTMLAnchorElement).href = google;
+      (document.getElementById('cal-outlook') as HTMLAnchorElement).href = outlook;
+
+      if (urlCalendario) URL.revokeObjectURL(urlCalendario);
+      urlCalendario = archivoCalendario(datos);
+      (document.getElementById('cal-ics') as HTMLAnchorElement).href = urlCalendario;
+
+      const mensaje = [
+        `Hola, soy ${datos.folio.replace('NF-', '')}. Acabo de reservar en ${marca.nombre}.`,
+        `${datos.servicio} con ${datos.barbero}`,
+        `${fechaLegible(datos.fecha)}, ${horaLegible(datos.hora)}`,
+        `Folio: ${datos.folio}`,
+      ].join('\n');
+
+      (document.getElementById('conf-whatsapp') as HTMLAnchorElement).href =
+        `https://wa.me/${contacto.whatsapp}?text=${encodeURIComponent(mensaje)}`;
+
+      formulario.hidden = true;
+      confirmada.hidden = false;
+      confirmada.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          ? 'auto'
+          : 'smooth',
+        block: 'center',
+      });
+      (confirmada.querySelector('h3') as HTMLElement).setAttribute('tabindex', '-1');
+      (confirmada.querySelector('h3') as HTMLElement).focus();
+    }
+
+    /* ------------------------ Menú de calendarios --------------------------- */
+
+    const calAbrir = document.getElementById('cal-abrir') as HTMLButtonElement;
+    const calLista = document.getElementById('cal-lista')!;
+    const calOpciones = Array.from(calLista.querySelectorAll<HTMLAnchorElement>('a'));
+
+    function abrirCalendarios(abierto: boolean) {
+      calLista.hidden = !abierto;
+      calAbrir.setAttribute('aria-expanded', String(abierto));
+      if (abierto) calOpciones[0]?.focus();
+    }
+
+    calAbrir.addEventListener('click', () => abrirCalendarios(calLista.hidden));
+
+    // Elegir un calendario cierra el menú; el enlace sigue su camino.
+    calOpciones.forEach((opcion) => {
+      opcion.addEventListener('click', () => abrirCalendarios(false));
+    });
+
+    document.addEventListener('click', (evento) => {
+      const dentro = (evento.target as HTMLElement).closest('#calendarios');
+      if (!dentro && !calLista.hidden) abrirCalendarios(false);
+    });
+
+    calLista.addEventListener('keydown', (evento) => {
+      const indice = calOpciones.indexOf(document.activeElement as HTMLAnchorElement);
+      if (evento.key === 'ArrowDown') {
+        evento.preventDefault();
+        calOpciones[(indice + 1) % calOpciones.length].focus();
+      } else if (evento.key === 'ArrowUp') {
+        evento.preventDefault();
+        calOpciones[(indice - 1 + calOpciones.length) % calOpciones.length].focus();
+      }
+    });
+
+    document.addEventListener('keydown', (evento) => {
+      if (evento.key === 'Escape' && !calLista.hidden) {
+        abrirCalendarios(false);
+        calAbrir.focus();
+      }
+    });
+
+    document.getElementById('conf-otra')!.addEventListener('click', async () => {
+      confirmada.hidden = true;
+      formulario.hidden = false;
+      diaElegido = null;
+      horaElegida = null;
+      ocultarAviso();
+      // La agenda cambió: el hueco que se acaba de tomar ya no está libre.
+      await traerAgenda();
+      actualizarResumen();
+      formulario.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    /* --------------------------------- Envío -------------------------------- */
+
+    formulario.addEventListener('submit', async (evento) => {
+      evento.preventDefault();
+      ocultarAviso();
+
+      if (!diaElegido || !horaElegida) {
+        mostrarAviso('error', 'Falta elegir el día y la hora de tu cita.');
+        document.getElementById('calendario')?.scrollIntoView({ block: 'center' });
+        return;
+      }
+
+      const validos = controles.map((c) => validar(c));
+      if (validos.includes(false)) {
+        const primerFallo = formulario.querySelector<HTMLElement>(
+          '[data-invalido] input, [data-invalido] textarea'
+        );
+        primerFallo?.focus();
+        mostrarAviso('error', 'Revisa los campos marcados y vuelve a enviar.');
+        return;
+      }
+
+      const servicio = servicioElegido();
+      const barbero = barberoElegido();
+      const datos = new FormData(formulario);
+
+      cargando(true);
+
+      try {
+        const hecha = await reservar({
+          nombre: String(datos.get('nombre') ?? ''),
+          telefono: String(datos.get('telefono') ?? ''),
+          correo: String(datos.get('correo') ?? '') || null,
+          servicioSlug: servicio.slug,
+          servicioNombre: servicio.nombre,
+          precio: servicio.precio,
+          duracionMin: servicio.duracion,
+          barberoSlug: barbero.slug,
+          fecha: diaElegido,
+          hora: horaElegida,
+          notas: String(datos.get('notas') ?? '') || null,
+        });
+
+        mostrarConfirmacion({
+          folio: hecha.folio,
+          servicio: servicio.nombre,
+          barbero: hecha.barberoNombre,
+          fecha: diaElegido,
+          hora: horaElegida,
+          duracion: servicio.duracion,
+        });
+
+        /* La conversión. `value` va en pesos para que el informe muestre el
+           dinero agendado, no solo el número de citas. En GA4 hay que marcar
+           este evento como evento clave. */
+        window.medirEvento?.('reserva_completada', {
+          servicio: servicio.nombre,
+          barbero: hecha.barberoNombre,
+          value: servicio.precio,
+          currency: 'MXN',
+        });
+
+        formulario.reset();
+      } catch (error) {
+        const mensaje =
+          error instanceof ErrorReserva
+            ? error.message
+            : `No pudimos guardar la cita. Llámanos al ${contacto.telefono} y la agendamos por teléfono.`;
+
+        mostrarAviso('error', mensaje);
+
+        // Si el hueco se lo ganó alguien más, la agenda que tenemos en
+        // pantalla ya miente: hay que volver a pedirla.
+        if (error instanceof ErrorReserva && error.codigo === 'HORA_OCUPADA') {
+          horaElegida = null;
+          await traerAgenda();
+          actualizarResumen();
+        }
+      } finally {
+        cargando(false);
+      }
+    });
+
+    /* ------------------------- Cambios de selección -------------------------- */
+
+    formulario.querySelectorAll<HTMLInputElement>('input[name="servicio"], input[name="barbero"]')
+      .forEach((radio) => {
+        radio.addEventListener('change', () => {
+          // Cambiar de servicio o de barbero cambia qué huecos caben: la hora
+          // elegida puede haber dejado de existir.
+          horaElegida = null;
+          if (diaElegido && agenda) {
+            const s = servicioElegido();
+            const b = barberoElegido();
+            if (!diaTieneHuecos(agenda, diaElegido, s.duracion, b.slug)) diaElegido = null;
+          }
+          pintarCalendario();
+          pintarHorarios();
+          actualizarResumen();
+        });
+      });
+
+    /* Las tarjetas de servicio de más arriba mandan aquí con el servicio ya
+       elegido. */
+    document.addEventListener('elegir-servicio', (evento) => {
+      const slug = (evento as CustomEvent<{ slug: string }>).detail?.slug;
+      if (!slug || !catalogo.some((s) => s.slug === slug)) return;
+      const radio = formulario.querySelector<HTMLInputElement>(
+        `input[name="servicio"][value="${slug}"]`
+      );
+      if (radio && !radio.checked) {
+        radio.checked = true;
+        radio.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+
+    atras.addEventListener('click', () => {
+      mesVisible = mesVisible.mes === 1
+        ? { anio: mesVisible.anio - 1, mes: 12 }
+        : { anio: mesVisible.anio, mes: mesVisible.mes - 1 };
+      pintarCalendario();
+    });
+
+    adelante.addEventListener('click', () => {
+      mesVisible = mesVisible.mes === 12
+        ? { anio: mesVisible.anio + 1, mes: 1 }
+        : { anio: mesVisible.anio, mes: mesVisible.mes + 1 };
+      pintarCalendario();
+    });
+
+    actualizarResumen();
+    pintarCalendario();
+    traerAgenda();
+  }
+</script>

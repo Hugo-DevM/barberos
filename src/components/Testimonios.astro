@@ -1,0 +1,149 @@
+---
+import { Icon } from 'astro-icon/components';
+import { testimonios } from '../data/barberia';
+
+/* Iniciales en vez de foto. Un avatar recortado de un banco de imágenes se
+   nota falso y resta credibilidad justo donde se está pidiendo confianza. */
+function iniciales(nombre: string) {
+  return nombre
+    .split(' ')
+    .slice(0, 2)
+    .map((parte) => parte[0])
+    .join('')
+    .toUpperCase();
+}
+---
+
+<section class="testimonios seccion lienzo lienzo--claro" id="clientes">
+  <div class="envoltura">
+    <div class="encabezado encabezado--centro revelar">
+      <span class="rotulo rotulo--solo">Los que vuelven</span>
+      <h2>Lo que dicen los que <em>ya se sentaron</em></h2>
+    </div>
+
+    <ul class="testimonios__rejilla">
+      {
+        testimonios.map((testimonio, i) => (
+          <li class="cita revelar" data-orden={i}>
+            <Icon name="ph:quotes" class="cita__comilla" aria-hidden="true" />
+
+            <blockquote>
+              <p>{testimonio.texto}</p>
+            </blockquote>
+
+            <figcaption class="cita__firma">
+              <span class="cita__iniciales" aria-hidden="true">{iniciales(testimonio.nombre)}</span>
+              <span class="cita__quien">
+                <strong>{testimonio.nombre}</strong>
+                <span>{testimonio.detalle} · {testimonio.servicio}</span>
+              </span>
+              <span class="cita__estrellas" role="img" aria-label="5 de 5 estrellas">
+                {[0, 1, 2, 3, 4].map(() => <Icon name="ph:star-fill" aria-hidden="true" />)}
+              </span>
+            </figcaption>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+<style>
+  .testimonios__rejilla {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--gap);
+    margin-top: clamp(32px, 3.4vw, 54px);
+  }
+
+  .cita {
+    display: flex;
+    flex-direction: column;
+    padding: clamp(20px, 2.2vw, 32px);
+    border: 1px solid var(--linea);
+    border-radius: var(--r-card);
+    background: var(--sup);
+  }
+
+  .cita__comilla {
+    width: 26px;
+    height: 26px;
+    color: var(--acento);
+    opacity: 0.55;
+  }
+
+  .cita blockquote {
+    flex: 1;
+    margin-top: 16px;
+  }
+
+  .cita blockquote p {
+    font-family: 'Fraunces', ui-serif, Georgia, serif;
+    font-size: clamp(1.05rem, 1.45vw, 1.28rem);
+    font-weight: 600;
+    line-height: 1.45;
+    letter-spacing: -0.016em;
+    color: var(--ink);
+  }
+
+  .cita__firma {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 18px;
+    border-top: 1px solid var(--linea);
+  }
+
+  .cita__iniciales {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    flex: none;
+    border-radius: var(--r-pill);
+    background: var(--vino-900);
+    color: var(--arena);
+    font-size: 0.813rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  .cita__quien {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .cita__quien strong {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .cita__quien span {
+    font-size: 0.75rem;
+    color: var(--ink-2);
+  }
+
+  .cita__estrellas {
+    display: inline-flex;
+    gap: 2px;
+    flex: none;
+  }
+
+  .cita__estrellas :global(svg) {
+    width: 13px;
+    height: 13px;
+    color: var(--acento);
+  }
+
+  @media (max-width: 760px) {
+    .testimonios__rejilla { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  @media (max-width: 420px) {
+    .cita__estrellas { display: none; }
+  }
+</style>

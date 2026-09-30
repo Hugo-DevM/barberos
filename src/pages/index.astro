@@ -1,0 +1,45 @@
+---
+import Base from '../layouts/Base.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+import Hero from '../components/Hero.astro';
+import Cinta from '../components/Cinta.astro';
+import Servicios from '../components/Servicios.astro';
+import Equipo from '../components/Equipo.astro';
+import Reserva from '../components/Reserva.astro';
+import Galeria from '../components/Galeria.astro';
+import Testimonios from '../components/Testimonios.astro';
+import Local from '../components/Local.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import BarraMovil from '../components/BarraMovil.astro';
+import { marca } from '../data/barberia';
+
+const titulo = `${marca.nombre} | Barbería en la Condesa, CDMX`;
+const descripcion =
+  'Barbería en la Condesa con reserva en línea: eliges servicio, barbero, día y hora, y el lugar queda apartado al instante. Corte, barba y afeitado a navaja desde 2012.';
+---
+
+<Base titulo={titulo} descripcion={descripcion} precargarHero>
+  <SiteHeader />
+
+  <main id="contenido">
+    <Hero />
+    <Cinta />
+    <Servicios />
+    <Equipo />
+    <Reserva />
+    <Galeria />
+    <Testimonios />
+    <Local />
+  </main>
+
+  <SiteFooter />
+  <BarraMovil />
+</Base>
+
+<style>
+  /* La barra fija de móvil no debe tapar el final del pie. */
+  @media (max-width: 720px) {
+    main { padding-bottom: 0; }
+    :global(body) { padding-bottom: 74px; }
+  }
+</style>

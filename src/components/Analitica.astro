@@ -1,0 +1,108 @@
+---
+/* ---------------------------------------------------------------------------
+   Analítica — Google Analytics 4.
+
+   Qué mide: además de la vista de página, los tres gestos que aquí valen como
+   lead (tocar el teléfono, abrir WhatsApp, enviar el formulario). Sin esos
+   eventos GA4 solo diría cuánta gente llega, no cuánta contacta.
+
+   Cómo se enciende: la variable de entorno PUBLIC_GA_ID. Si está vacía el
+   componente no pinta nada y el sitio no carga un solo byte de Google, así que
+   las maquetas de venta y `astro dev` quedan limpios sin tocar código.
+
+   Nombres de eventos: en español, igual que el resto del proyecto. Los
+   parámetros propios (servicio, seccion, medio…) hay que declararlos una vez
+   como dimensiones personalizadas en GA4 para poder segmentar por ellos.
+--------------------------------------------------------------------------- */
+
+interface Props {
+  /* Las páginas internas (el panel del negocio) no se miden: las visitas del
+     dueño revisando su agenda falsean el informe de captación. */
+  activa?: boolean;
+}
+
+const { activa = true } = Astro.props;
+
+const medicion = (import.meta.env.PUBLIC_GA_ID ?? '').trim();
+/* Se valida el formato para que un valor a medio pegar no deje el sitio
+   pidiendo un script que no existe. */
+const medir = activa && /^G-[A-Z0-9]{6,}$/i.test(medicion);
+---
+
+{
+  medir && (
+    <>
+      <link rel="preconnect" href="https://www.googletagmanager.com" />
+
+      <script is:inline async src={`https://www.googletagmanager.com/gtag/js?id=${medicion}`} />
+
+      <script is:inline define:vars={{ medicion }}>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() {
+          window.dataLayer.push(arguments);
+        }
+        window.gtag = gtag;
+        gtag('js', new Date());
+
+        /* Consentimiento: se mide la audiencia, no se abre la puerta a
+           publicidad personalizada. Si algún día se conecta Google Ads, hay
+           que subir un banner antes de conceder ad_storage. */
+        gtag('consent', 'default', {
+          analytics_storage: 'granted',
+          ad_storage: 'denied',
+          ad_user_data: 'denied',
+          ad_personalization: 'denied',
+        });
+
+        gtag('config', medicion, { anonymize_ip: true });
+
+        /* Puerta única para los eventos que dispara el resto del sitio. Los
+           llamadores usan `window.medirEvento?.(...)`, así que si este script
+           no existe (sin PUBLIC_GA_ID) nada se rompe. */
+        window.medirEvento = function (nombre, datos) {
+          if (typeof window.gtag !== 'function') return;
+          window.gtag('event', nombre, datos || {});
+        };
+
+        /* Un solo listener delegado para todos los enlaces de contacto, en
+           fase de captura: el clic se registra antes de que el navegador se
+           vaya a la app del teléfono o de WhatsApp. */
+        document.addEventListener(
+          'click',
+          function (evento) {
+            var destino = evento.target;
+            if (!(destino instanceof Element)) return;
+
+            var marcado = destino.closest('[data-evento]');
+            if (marcado) {
+              window.medirEvento(marcado.getAttribute('data-evento'), {
+                seccion: seccionDe(marcado),
+              });
+            }
+
+            var enlace = destino.closest('a[href]');
+            if (!enlace) return;
+
+            var href = enlace.getAttribute('href') || '';
+            if (href.indexOf('tel:') === 0) {
+              window.medirEvento('clic_telefono', { seccion: seccionDe(enlace) });
+            } else if (href.indexOf('mailto:') === 0) {
+              window.medirEvento('clic_correo', { seccion: seccionDe(enlace) });
+            } else if (/wa\.me|api\.whatsapp\.com/.test(href)) {
+              window.medirEvento('clic_whatsapp', { seccion: seccionDe(enlace) });
+            }
+          },
+          true
+        );
+
+        /* De qué parte de la página salió el clic. Distingue el WhatsApp de la
+           barra móvil del que está al final del formulario, que valen cosas
+           distintas. */
+        function seccionDe(elemento) {
+          var contenedor = elemento.closest('[id]');
+          return contenedor ? contenedor.id : 'sin-seccion';
+        }
+      </script>
+    </>
+  )
+}

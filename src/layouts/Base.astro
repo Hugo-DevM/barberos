@@ -1,0 +1,174 @@
+---
+import '../styles/global.css';
+import Analitica from '../components/Analitica.astro';
+import { marca, contacto, servicios } from '../data/barberia';
+
+interface Props {
+  titulo: string;
+  descripcion: string;
+  imagenOg?: string;
+  /* Las páginas de servicio (panel, aviso) no tienen por qué salir en
+     buscadores ni precargar la foto del hero. */
+  precargarHero?: boolean;
+  indexable?: boolean;
+  /* El panel es de uso interno: sus visitas no cuentan como tráfico. */
+  analitica?: boolean;
+}
+
+const {
+  titulo,
+  descripcion,
+  imagenOg = '/img/og-navaja.jpg',
+  precargarHero = false,
+  indexable = true,
+  analitica = true,
+} = Astro.props;
+
+const base = Astro.site ?? new URL('https://www.navajayfilo.mx');
+const canonica = new URL(Astro.url.pathname, base);
+const ogAbsoluta = new URL(imagenOg, base);
+
+/* Datos estructurados: hacen que la ficha del negocio pueda aparecer en el
+   panel local de Google con horarios, dirección y precios. Ajustar al
+   publicar con los datos reales. */
+const DIAS_SCHEMA = [
+  { dias: ['Tuesday', 'Wednesday', 'Thursday', 'Friday'], abre: '11:00', cierra: '20:30' },
+  { dias: ['Saturday'], abre: '10:00', cierra: '19:00' },
+  { dias: ['Sunday'], abre: '11:00', cierra: '16:00' },
+];
+
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'HairSalon',
+  name: marca.nombre,
+  description: descripcion,
+  url: canonica.href,
+  image: ogAbsoluta.href,
+  telephone: contacto.telefono,
+  email: contacto.correo,
+  priceRange: '$$',
+  currenciesAccepted: 'MXN',
+  foundingDate: String(marca.fundada),
+  address: {
+    '@type': 'PostalAddress',
+    streetAddress: contacto.calle,
+    addressLocality: contacto.colonia,
+    postalCode: '06100',
+    addressRegion: 'CDMX',
+    addressCountry: 'MX',
+  },
+  openingHoursSpecification: DIAS_SCHEMA.map((d) => ({
+    '@type': 'OpeningHoursSpecification',
+    dayOfWeek: d.dias,
+    opens: d.abre,
+    closes: d.cierra,
+  })),
+  hasOfferCatalog: {
+    '@type': 'OfferCatalog',
+    name: 'Servicios de barbería',
+    itemListElement: servicios.map((s) => ({
+      '@type': 'Offer',
+      priceCurrency: 'MXN',
+      price: s.precio,
+      itemOffered: { '@type': 'Service', name: s.nombre },
+    })),
+  },
+};
+---
+
+<!doctype html>
+<html lang="es-MX">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{titulo}</title>
+    <meta name="description" content={descripcion} />
+    <link rel="canonical" href={canonica.href} />
+    {/* Único color literal del proyecto: una etiqueta meta no puede leer una
+        variable CSS. Tiene que seguir a --vino-900 de global.css. */}
+    <meta name="theme-color" content="#2b1218" />
+    {!indexable && <meta name="robots" content="noindex, nofollow" />}
+
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="es_MX" />
+    <meta property="og:site_name" content={marca.nombre} />
+    <meta property="og:title" content={titulo} />
+    <meta property="og:description" content={descripcion} />
+    <meta property="og:url" content={canonica.href} />
+    <meta property="og:image" content={ogAbsoluta.href} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={titulo} />
+    <meta name="twitter:description" content={descripcion} />
+    <meta name="twitter:image" content={ogAbsoluta.href} />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+
+    <link rel="preload" href="/fonts/fraunces-latin-700.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/archivo-latin-400.woff2" as="font" type="font/woff2" crossorigin />
+    {
+      precargarHero && (
+        <link rel="preload" href="/img/hero-principal.jpg" as="image" fetchpriority="high" />
+      )
+    }
+
+    <script is:inline>
+      // Se marca antes de pintar: así el revelado al hacer scroll solo se
+      // activa cuando puede completarse. Sin JS nada queda invisible.
+      document.documentElement.classList.add('js');
+    </script>
+
+    {indexable && <script type="application/ld+json" is:inline set:html={JSON.stringify(schema)} />}
+
+    <Analitica activa={analitica} />
+  </head>
+
+  <body>
+    <a class="salto-contenido" href="#contenido">Saltar al contenido</a>
+    <slot />
+
+    <script>
+      /* ------------------------------------------------------------------
+         Revelado al entrar en pantalla.
+         Marca dónde empieza cada bloque sin que el usuario tenga que
+         buscarlo. IntersectionObserver, nunca un listener de scroll.
+      ------------------------------------------------------------------ */
+      const sinMovimiento = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+      function iniciarRevelado() {
+        const objetivos = Array.from(document.querySelectorAll<HTMLElement>('.revelar'));
+        if (objetivos.length === 0) return;
+
+        if (sinMovimiento.matches || !('IntersectionObserver' in window)) {
+          objetivos.forEach((el) => el.classList.add('dentro'));
+          return;
+        }
+
+        const observador = new IntersectionObserver(
+          (entradas) => {
+            entradas.forEach((entrada) => {
+              if (!entrada.isIntersecting) return;
+              const el = entrada.target as HTMLElement;
+              el.classList.add('dentro');
+              observador.unobserve(el);
+            });
+          },
+          { rootMargin: '0px 0px -8% 0px', threshold: 0.1 }
+        );
+
+        objetivos.forEach((el, i) => {
+          // Escalonado corto por grupo: los hermanos entran en cascada, no
+          // todos de golpe.
+          const orden = Number(el.dataset.orden ?? i % 6);
+          el.style.setProperty('--revelar-espera', `${Math.min(orden, 6) * 75}ms`);
+          observador.observe(el);
+        });
+      }
+
+      iniciarRevelado();
+      document.addEventListener('astro:after-swap', iniciarRevelado);
+    </script>
+  </body>
+</html>

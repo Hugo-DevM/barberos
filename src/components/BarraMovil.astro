@@ -1,0 +1,77 @@
+---
+import { Icon } from 'astro-icon/components';
+import { contacto } from '../data/barberia';
+
+const mensaje = encodeURIComponent('Hola, quiero preguntar por una cita en Navaja & Filo.');
+---
+
+<!-- Barra fija en móvil: las tres cosas que alguien busca desde el celular
+     estando en la calle. No aparece en escritorio, donde la cabecera ya
+     tiene el teléfono y el botón de reservar. -->
+<div class="barra">
+  <a class="barra__accion" href={`tel:${contacto.telefonoHref}`}>
+    <Icon name="ph:phone" aria-hidden="true" />
+    <span>Llamar</span>
+  </a>
+
+  <a
+    class="barra__accion"
+    href={`https://wa.me/${contacto.whatsapp}?text=${mensaje}`}
+    target="_blank"
+    rel="noopener"
+  >
+    <Icon name="ph:whatsapp-logo" aria-hidden="true" />
+    <span>WhatsApp</span>
+  </a>
+
+  <a class="barra__accion barra__accion--principal" href="#reservar" data-evento="cta_reservar">
+    <Icon name="ph:calendar-check" aria-hidden="true" />
+    <span>Reservar</span>
+  </a>
+</div>
+
+<style>
+  .barra {
+    display: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 70;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    background: var(--velo-fuerte);
+    backdrop-filter: blur(14px);
+    border-top: 1px solid var(--sobre-oscuro-linea);
+    gap: 8px;
+  }
+
+  .barra__accion {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    flex: 1;
+    padding: 9px 6px;
+    border-radius: var(--r-inner);
+    color: var(--sobre-oscuro-ink-2);
+    text-decoration: none;
+    font-size: 0.688rem;
+    font-weight: 600;
+  }
+
+  .barra__accion :global(svg) { width: 19px; height: 19px; }
+
+  .barra__accion--principal {
+    background: var(--arena);
+    color: var(--vino-950);
+  }
+
+  @media (max-width: 720px) {
+    .barra { display: flex; }
+  }
+
+  @media (max-width: 720px) and (prefers-reduced-motion: no-preference) {
+    .barra { transition: transform 0.3s var(--ease); }
+  }
+</style>

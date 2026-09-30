@@ -1,0 +1,337 @@
+---
+import { Icon } from 'astro-icon/components';
+import Logo from './Logo.astro';
+import { navegacion, contacto, CTA_PRINCIPAL } from '../data/barberia';
+---
+
+<header class="cabecera" id="cabecera" data-arriba="true">
+  <div class="cabecera__caja envoltura">
+    <Logo />
+
+    <nav class="cabecera__nav" aria-label="Secciones del sitio">
+      <ul>
+        {
+          navegacion.map((enlace) => (
+            <li>
+              <a href={enlace.href}>{enlace.etiqueta}</a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+
+    <div class="cabecera__acciones">
+      <a class="cabecera__tel" href={`tel:${contacto.telefonoHref}`}>
+        <Icon name="ph:phone" aria-hidden="true" />
+        <span>{contacto.telefono}</span>
+      </a>
+      <a class="btn btn--sm" href="#reservar" data-evento="cta_reservar">{CTA_PRINCIPAL}</a>
+    </div>
+
+    <button
+      class="cabecera__hamburguesa"
+      type="button"
+      id="abrir-menu"
+      aria-expanded="false"
+      aria-controls="menu-movil"
+    >
+      <Icon name="ph:list" aria-hidden="true" />
+      <span class="sr-only">Abrir menú</span>
+    </button>
+  </div>
+</header>
+
+<div class="menu" id="menu-movil" hidden>
+  <div class="menu__barra envoltura">
+    <Logo />
+    <button class="menu__cerrar" type="button" id="cerrar-menu">
+      <Icon name="ph:x" aria-hidden="true" />
+      <span class="sr-only">Cerrar menú</span>
+    </button>
+  </div>
+
+  <nav class="menu__nav envoltura" aria-label="Secciones del sitio">
+    <ul>
+      {
+        navegacion.map((enlace) => (
+          <li>
+            <a href={enlace.href} data-cierra-menu>
+              {enlace.etiqueta}
+              <Icon name="ph:arrow-up-right" aria-hidden="true" />
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    <div class="menu__pie">
+      <a class="btn btn--full btn--lg" href="#reservar" data-cierra-menu data-evento="cta_reservar">
+        {CTA_PRINCIPAL}
+      </a>
+      <a class="menu__tel" href={`tel:${contacto.telefonoHref}`}>
+        <Icon name="ph:phone" aria-hidden="true" />
+        {contacto.telefono}
+      </a>
+    </div>
+  </nav>
+</div>
+
+<style>
+  .cabecera {
+    position: sticky;
+    top: 0;
+    z-index: 60;
+    /* El hero es oscuro, así que la cabecera arranca transparente y solo se
+       opaca cuando hay contenido pasando por debajo. */
+    background: transparent;
+    border-bottom: 1px solid transparent;
+    transition:
+      background-color 0.3s var(--ease),
+      border-color 0.3s var(--ease),
+      backdrop-filter 0.3s var(--ease);
+  }
+
+  .cabecera[data-arriba='false'] {
+    background: var(--velo-cabecera);
+    backdrop-filter: blur(14px) saturate(140%);
+    border-bottom-color: var(--sobre-oscuro-linea);
+  }
+
+  .cabecera__caja {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    min-height: var(--alto-cabecera);
+    /* La cabecera siempre se compone sobre vino oscuro, aunque flote sobre
+       una banda de hueso al hacer scroll. */
+    --ink: var(--sobre-oscuro-ink);
+    --ink-2: var(--sobre-oscuro-ink-2);
+    --acento: var(--arena);
+    --acento-alto: var(--arena-clara);
+    --acento-ink: var(--vino-950);
+    color: var(--ink);
+  }
+
+  .cabecera__nav ul {
+    display: flex;
+    align-items: center;
+    gap: clamp(18px, 2.4vw, 38px);
+  }
+
+  .cabecera__nav a {
+    position: relative;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--ink-2);
+    text-decoration: none;
+    padding-block: 6px;
+    transition: color 0.18s var(--ease);
+  }
+
+  .cabecera__nav a::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 1px;
+    background: var(--arena);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.24s var(--ease);
+  }
+
+  .cabecera__nav a:hover { color: var(--ink); }
+  .cabecera__nav a:hover::after { transform: scaleX(1); }
+
+  .cabecera__acciones {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .cabecera__tel {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--ink-2);
+    text-decoration: none;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .cabecera__tel:hover { color: var(--ink); }
+  .cabecera__tel :global(svg) { width: 16px; height: 16px; color: var(--arena); }
+
+  .cabecera__hamburguesa {
+    display: none;
+    padding: 9px;
+    border-radius: var(--r-inner);
+    border: 1px solid var(--sobre-oscuro-linea-fuerte);
+    color: var(--sobre-oscuro-ink);
+    cursor: pointer;
+  }
+
+  .cabecera__hamburguesa :global(svg) { width: 22px; height: 22px; }
+
+  /* ------------------------------ Menú móvil ----------------------------- */
+
+  .menu {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    background: var(--vino-950);
+    color: var(--sobre-oscuro-ink);
+    overflow-y: auto;
+    --ink: var(--sobre-oscuro-ink);
+    --ink-2: var(--sobre-oscuro-ink-2);
+  }
+
+  .menu[hidden] { display: none; }
+
+  .menu__barra {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: var(--alto-cabecera);
+  }
+
+  .menu__cerrar {
+    padding: 9px;
+    border-radius: var(--r-inner);
+    border: 1px solid var(--sobre-oscuro-linea-fuerte);
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .menu__cerrar :global(svg) { width: 22px; height: 22px; }
+
+  .menu__nav {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: calc(100dvh - var(--alto-cabecera));
+    padding-bottom: 32px;
+  }
+
+  .menu__nav ul {
+    display: grid;
+    gap: 2px;
+    margin-top: 18px;
+  }
+
+  .menu__nav ul a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--sobre-oscuro-linea);
+    font-family: 'Fraunces', ui-serif, Georgia, serif;
+    font-size: 1.9rem;
+    font-weight: 700;
+    letter-spacing: -0.028em;
+    text-decoration: none;
+  }
+
+  .menu__nav ul :global(svg) { width: 22px; height: 22px; color: var(--arena); }
+
+  .menu__pie {
+    display: grid;
+    gap: 18px;
+    margin-top: 40px;
+    justify-items: center;
+  }
+
+  .menu__tel {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--ink-2);
+    text-decoration: none;
+  }
+
+  .menu__tel :global(svg) { width: 17px; height: 17px; color: var(--arena); }
+
+  /* ------------------------------- Cortes -------------------------------- */
+
+  @media (max-width: 1040px) {
+    .cabecera__tel span { display: none; }
+  }
+
+  @media (max-width: 880px) {
+    .cabecera__nav,
+    .cabecera__acciones { display: none; }
+    .cabecera__hamburguesa { display: inline-flex; }
+  }
+</style>
+
+<script>
+  /* Opaca la cabecera en cuanto el hero deja de estar pegado arriba. Se
+     resuelve con un centinela observado, no con un listener de scroll. */
+  const cabecera = document.getElementById('cabecera');
+
+  if (cabecera) {
+    const centinela = document.createElement('div');
+    centinela.setAttribute('aria-hidden', 'true');
+    centinela.style.cssText = 'position:absolute;top:0;left:0;width:1px;height:1px;';
+    document.body.prepend(centinela);
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(
+        ([entrada]) => {
+          cabecera.dataset.arriba = String(entrada.isIntersecting);
+        },
+        { threshold: 0 }
+      ).observe(centinela);
+    } else {
+      cabecera.dataset.arriba = 'false';
+    }
+  }
+
+  /* ------------------------------ Menú móvil ------------------------------ */
+
+  const menu = document.getElementById('menu-movil');
+  const abrir = document.getElementById('abrir-menu');
+  const cerrar = document.getElementById('cerrar-menu');
+
+  if (menu && abrir && cerrar) {
+    let ultimoFoco: HTMLElement | null = null;
+
+    function abrirMenu() {
+      ultimoFoco = document.activeElement as HTMLElement;
+      menu!.hidden = false;
+      abrir!.setAttribute('aria-expanded', 'true');
+      document.body.style.overflow = 'hidden';
+      cerrar!.focus();
+    }
+
+    function cerrarMenu() {
+      menu!.hidden = true;
+      abrir!.setAttribute('aria-expanded', 'false');
+      document.body.style.overflow = '';
+      (ultimoFoco ?? abrir!).focus();
+    }
+
+    abrir.addEventListener('click', abrirMenu);
+    cerrar.addEventListener('click', cerrarMenu);
+
+    menu.querySelectorAll('[data-cierra-menu]').forEach((enlace) => {
+      enlace.addEventListener('click', cerrarMenu);
+    });
+
+    document.addEventListener('keydown', (evento) => {
+      if (evento.key === 'Escape' && !menu.hidden) cerrarMenu();
+    });
+
+    // Si la pantalla crece hasta el tamaño donde la navegación normal vuelve
+    // a estar visible, el panel deja de tener sentido y debe cerrarse.
+    const anchoEscritorio = window.matchMedia('(min-width: 881px)');
+    anchoEscritorio.addEventListener('change', (e) => {
+      if (e.matches && !menu.hidden) cerrarMenu();
+    });
+  }
+</script>

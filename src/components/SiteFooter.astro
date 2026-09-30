@@ -1,0 +1,205 @@
+---
+import { Icon } from 'astro-icon/components';
+import Logo from './Logo.astro';
+import { marca, contacto, pieEnlaces, CTA_PRINCIPAL } from '../data/barberia';
+
+const anio = new Date().getFullYear();
+---
+
+<footer class="pie lienzo lienzo--oscuro">
+  <div class="envoltura">
+    <div class="pie__alto">
+      <div class="pie__marca">
+        <Logo tamano="grande" comoEnlace={false} />
+        <p class="pie__claim">{marca.claim}</p>
+
+        <a class="btn" href="#reservar">{CTA_PRINCIPAL}</a>
+
+        <ul class="pie__redes">
+          {
+            contacto.redes.map((red) => (
+              <li>
+                <a href={red.url} target="_blank" rel="noopener" aria-label={red.nombre}>
+                  <Icon name={red.icono} aria-hidden="true" />
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+
+      <nav class="pie__columnas" aria-label="Enlaces del pie">
+        {
+          pieEnlaces.map((columna) => (
+            <div class="pie__columna">
+              <h2>{columna.titulo}</h2>
+              <ul>
+                {columna.enlaces.map((enlace) => (
+                  <li>
+                    <a href={enlace.href}>{enlace.etiqueta}</a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
+        }
+
+        <div class="pie__columna">
+          <h2>Contacto</h2>
+          <ul>
+            <li><a href={`tel:${contacto.telefonoHref}`}>{contacto.telefono}</a></li>
+            <li><a href={`mailto:${contacto.correo}`}>{contacto.correo}</a></li>
+            <li><a href={contacto.mapa} target="_blank" rel="noopener">{contacto.calle}</a></li>
+            <li class="pie__sin-enlace">{contacto.colonia}</li>
+          </ul>
+        </div>
+      </nav>
+    </div>
+
+    <div class="pie__bajo">
+      <p>© {anio} {marca.nombre}. Todos los derechos reservados.</p>
+      <p class="pie__demo">
+        Sitio de demostración. Marca, precios y datos de contacto son ficticios.
+      </p>
+    </div>
+  </div>
+
+  <!-- Marca gigante recortada por el borde inferior. Es decorativa: el
+       nombre ya está arriba, en texto normal. -->
+  <p class="pie__gigante" aria-hidden="true">{marca.nombre}</p>
+</footer>
+
+<style>
+  .pie {
+    position: relative;
+    background: var(--vino-950);
+    padding-top: clamp(52px, 5.5vw, 88px);
+    overflow: clip;
+  }
+
+  .pie__alto {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+    gap: clamp(32px, 4vw, 72px);
+    padding-bottom: clamp(36px, 4vw, 60px);
+    border-bottom: 1px solid var(--linea);
+  }
+
+  .pie__claim {
+    margin-top: 18px;
+    max-width: 30ch;
+    font-size: 0.938rem;
+    line-height: 1.65;
+    color: var(--ink-2);
+  }
+
+  .pie__marca .btn { margin-top: 24px; }
+
+  .pie__redes {
+    display: flex;
+    gap: 9px;
+    margin-top: 28px;
+  }
+
+  .pie__redes a {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--linea-fuerte);
+    color: var(--ink-2);
+    transition:
+      color 0.2s var(--ease),
+      border-color 0.2s var(--ease),
+      background-color 0.2s var(--ease);
+  }
+
+  .pie__redes a:hover {
+    color: var(--vino-950);
+    background: var(--arena);
+    border-color: var(--arena);
+  }
+
+  .pie__redes :global(svg) { width: 18px; height: 18px; }
+
+  .pie__columnas {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: clamp(20px, 2.4vw, 36px);
+  }
+
+  .pie__columna h2 {
+    font-family: 'Archivo', sans-serif;
+    font-size: 0.688rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--acento);
+    margin-bottom: 16px;
+  }
+
+  .pie__columna ul { display: grid; gap: 10px; }
+
+  .pie__columna a {
+    font-size: 0.875rem;
+    color: var(--ink-2);
+    text-decoration: none;
+    transition: color 0.18s var(--ease);
+  }
+
+  .pie__columna a:hover { color: var(--ink); }
+
+  .pie__sin-enlace {
+    font-size: 0.875rem;
+    color: var(--ink-3);
+  }
+
+  .pie__bajo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    flex-wrap: wrap;
+    padding-block: 26px;
+    font-size: 0.781rem;
+    color: var(--ink-3);
+  }
+
+  .pie__demo { color: var(--ink-3); }
+
+  /* ------------------------------ Marca gigante ---------------------------- */
+
+  .pie__gigante {
+    margin-top: clamp(4px, 1vw, 16px);
+    /* Se recorta contra el borde inferior: se lee como un rótulo pintado en
+       la persiana, no como un título más. */
+    margin-bottom: clamp(-34px, -3.5vw, -12px);
+    font-family: 'Fraunces', ui-serif, Georgia, serif;
+    font-size: clamp(3.4rem, 15.5vw, 14rem);
+    font-weight: 700;
+    line-height: 0.82;
+    letter-spacing: -0.045em;
+    text-align: center;
+    white-space: nowrap;
+    color: transparent;
+    -webkit-text-stroke: 1px var(--sobre-oscuro-linea-fuerte);
+    user-select: none;
+  }
+
+  /* -------------------------------- Cortes --------------------------------- */
+
+  @media (max-width: 940px) {
+    .pie__alto { grid-template-columns: minmax(0, 1fr); }
+    .pie__columnas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  @media (max-width: 720px) {
+    /* La barra fija de móvil se queda encima del pie: hay que dejarle sitio. */
+    .pie__gigante { margin-bottom: -10px; }
+  }
+
+  @media (max-width: 440px) {
+    .pie__columnas { grid-template-columns: minmax(0, 1fr); gap: 26px; }
+  }
+</style>

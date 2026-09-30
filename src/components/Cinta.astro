@@ -1,0 +1,92 @@
+---
+import { cinta } from '../data/barberia';
+
+/* La cinta es decorativa: repite palabras que ya están en #servicios. Se
+   marca aria-hidden entera para que un lector de pantalla no lea seis veces
+   la misma lista de servicios. */
+const vueltas = [0, 1];
+---
+
+<div class="cinta lienzo lienzo--oscuro" aria-hidden="true">
+  <div class="cinta__riel">
+    {
+      vueltas.map(() => (
+        <ul class="cinta__grupo">
+          {cinta.map((palabra) => (
+            <li>
+              <span>{palabra}</span>
+              <svg viewBox="0 0 24 24" class="cinta__marca" aria-hidden="true">
+                <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                  <path d="M7 4 L16.5 16" />
+                  <path d="M17 4 L7.5 16" />
+                  <circle cx="6.4" cy="18.6" r="2.2" />
+                  <circle cx="17.6" cy="18.6" r="2.2" />
+                </g>
+              </svg>
+            </li>
+          ))}
+        </ul>
+      ))
+    }
+  </div>
+</div>
+
+<style>
+  .cinta {
+    overflow: hidden;
+    border-block: 1px solid var(--linea);
+    background: var(--vino-950);
+    padding-block: 15px;
+    /* El riel se sale del ancho de la página a propósito; sin esto el
+       desplazamiento arrastraría la barra horizontal del documento. */
+    user-select: none;
+  }
+
+  .cinta__riel {
+    display: flex;
+    width: max-content;
+    animation: desfilar 42s linear infinite;
+  }
+
+  .cinta__grupo {
+    display: flex;
+    align-items: center;
+  }
+
+  .cinta__grupo li {
+    display: flex;
+    align-items: center;
+    gap: clamp(22px, 3vw, 44px);
+    padding-inline: clamp(11px, 1.5vw, 22px);
+  }
+
+  .cinta__grupo span {
+    font-family: 'Fraunces', ui-serif, Georgia, serif;
+    font-size: clamp(1.05rem, 1.7vw, 1.5rem);
+    font-weight: 600;
+    font-style: italic;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  .cinta__marca {
+    width: 17px;
+    height: 17px;
+    flex: none;
+    color: var(--arena);
+  }
+
+  /* Dos copias idénticas: al recorrer exactamente la mitad, la segunda cae
+     donde estaba la primera y el salto no se ve. */
+  @keyframes desfilar {
+    to { transform: translateX(-50%); }
+  }
+
+  .cinta:hover .cinta__riel,
+  .cinta:focus-within .cinta__riel { animation-play-state: paused; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cinta__riel { animation: none; }
+  }
+</style>

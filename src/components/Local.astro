@@ -1,0 +1,283 @@
+---
+import { Icon } from 'astro-icon/components';
+import { local, contacto, CTA_PRINCIPAL } from '../data/barberia';
+---
+
+<section class="local seccion lienzo lienzo--oscuro" id="local">
+  <div class="envoltura local__rejilla">
+    <div class="local__texto revelar">
+      <span class="rotulo">{local.eyebrow}</span>
+      <h2>{local.titulo}</h2>
+      <p class="local__parrafo">{local.texto}</p>
+
+      <ul class="local__puntos">
+        {
+          local.puntos.map((punto) => (
+            <li>
+              <Icon name="ph:check" aria-hidden="true" />
+              {punto}
+            </li>
+          ))
+        }
+      </ul>
+
+      <figure class="local__historia">
+        <img
+          src={local.historia.imagen}
+          width="1200"
+          height="900"
+          alt={local.historia.alt}
+          loading="lazy"
+          decoding="async"
+        />
+        <figcaption>{local.historia.pie}</figcaption>
+      </figure>
+    </div>
+
+    <div class="local__lado">
+      <figure class="local__foto revelar" data-orden="1">
+        <img
+          src={local.imagen}
+          width="1400"
+          height="1000"
+          alt={local.alt}
+          loading="lazy"
+          decoding="async"
+        />
+      </figure>
+
+      <address class="ficha revelar" data-orden="2">
+        <div class="ficha__bloque">
+          <h3 class="ficha__titulo">
+            <Icon name="ph:clock" aria-hidden="true" />
+            Horarios
+          </h3>
+          <dl class="ficha__horarios">
+            {
+              contacto.horarios.map((h) => (
+                <div class:list={['ficha__fila', h.horas === 'Cerrado' && 'ficha__fila--cerrado']}>
+                  <dt>{h.dias}</dt>
+                  <dd>{h.horas}</dd>
+                </div>
+              ))
+            }
+          </dl>
+        </div>
+
+        <div class="ficha__bloque">
+          <h3 class="ficha__titulo">
+            <Icon name="ph:map-pin" aria-hidden="true" />
+            Dónde estamos
+          </h3>
+          <p class="ficha__linea">{contacto.calle}</p>
+          <p class="ficha__linea">{contacto.colonia}</p>
+          <p class="ficha__linea">{contacto.cp}</p>
+          <a class="ficha__enlace" href={contacto.mapa} target="_blank" rel="noopener">
+            Abrir en el mapa
+            <Icon name="ph:arrow-up-right" aria-hidden="true" />
+          </a>
+        </div>
+
+        <div class="ficha__acciones">
+          <a class="btn btn--lg" href="#reservar">{CTA_PRINCIPAL}</a>
+          <a class="ficha__tel" href={`tel:${contacto.telefonoHref}`}>
+            <Icon name="ph:phone" aria-hidden="true" />
+            {contacto.telefono}
+          </a>
+        </div>
+      </address>
+    </div>
+  </div>
+</section>
+
+<style>
+  .local__rejilla {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    gap: clamp(30px, 4vw, 64px);
+    align-items: start;
+  }
+
+  .local__texto h2 { margin-top: 20px; }
+
+  .local__parrafo {
+    margin-top: 18px;
+    max-width: 46ch;
+    color: var(--ink-2);
+    font-size: clamp(1rem, 1.1vw, 1.05rem);
+    line-height: 1.7;
+  }
+
+  .local__puntos {
+    display: grid;
+    gap: 10px;
+    margin-top: 24px;
+  }
+
+  .local__puntos li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.875rem;
+    color: var(--ink-2);
+  }
+
+  .local__puntos :global(svg) {
+    width: 15px;
+    height: 15px;
+    flex: none;
+    color: var(--acento);
+  }
+
+  .local__historia {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: clamp(28px, 3vw, 44px);
+    padding-top: clamp(24px, 2.6vw, 34px);
+    border-top: 1px solid var(--linea);
+  }
+
+  .local__historia img {
+    width: 116px;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: var(--r-card);
+    border: 1px solid var(--linea);
+    flex: none;
+  }
+
+  .local__historia figcaption {
+    font-size: 0.813rem;
+    line-height: 1.5;
+    color: var(--ink-3);
+    font-style: italic;
+  }
+
+  /* --------------------------------- Lado --------------------------------- */
+
+  .local__lado {
+    display: grid;
+    gap: var(--gap);
+  }
+
+  .local__foto img {
+    width: 100%;
+    aspect-ratio: 7 / 5;
+    object-fit: cover;
+    border-radius: var(--r-card);
+    border: 1px solid var(--linea);
+    background: var(--sup);
+  }
+
+  .ficha {
+    display: grid;
+    gap: 26px;
+    padding: clamp(22px, 2.2vw, 32px);
+    border-radius: var(--r-card);
+    background: var(--vino-850);
+    border: 1px solid var(--linea);
+    font-style: normal;
+  }
+
+  .ficha__titulo {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 14px;
+    font-family: 'Archivo', sans-serif;
+    font-size: 0.719rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--acento);
+  }
+
+  .ficha__titulo :global(svg) { width: 16px; height: 16px; }
+
+  .ficha__horarios { display: grid; gap: 10px; }
+
+  .ficha__fila {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed var(--linea);
+  }
+
+  .ficha__fila:last-child { border-bottom: 0; padding-bottom: 0; }
+
+  .ficha__fila dt {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  .ficha__fila dd {
+    font-size: 0.875rem;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .ficha__fila--cerrado dt,
+  .ficha__fila--cerrado dd { color: var(--ink-3); }
+
+  .ficha__linea {
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--ink-2);
+  }
+
+  .ficha__enlace {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    font-size: 0.813rem;
+    font-weight: 600;
+    color: var(--acento);
+    text-decoration: none;
+    border-bottom: 1px solid currentColor;
+    padding-bottom: 1px;
+  }
+
+  .ficha__enlace :global(svg) { width: 14px; height: 14px; }
+
+  /* El botón no se estira a lo ancho de la ficha: a 500 píxeles de largo por
+     55 de alto dejaba de parecer un botón y parecía una barra. */
+  .ficha__acciones {
+    display: grid;
+    gap: 14px;
+    justify-items: center;
+    padding-top: 22px;
+    border-top: 1px solid var(--linea);
+  }
+
+  .ficha__acciones .btn { min-width: 14rem; }
+
+  .ficha__tel {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.938rem;
+    font-weight: 500;
+    color: var(--ink);
+    text-decoration: none;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ficha__tel :global(svg) { width: 17px; height: 17px; color: var(--acento); }
+
+  /* -------------------------------- Cortes --------------------------------- */
+
+  @media (max-width: 940px) {
+    .local__rejilla { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  @media (max-width: 480px) {
+    .local__historia { flex-direction: column; align-items: flex-start; }
+    .local__historia img { width: 100%; }
+  }
+</style>

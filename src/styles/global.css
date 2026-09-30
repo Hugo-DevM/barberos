@@ -1,0 +1,513 @@
+/* ==========================================================================
+   Navaja & Filo — sistema base
+   --------------------------------------------------------------------------
+   LIENZOS. La página alterna bandas de vino oscuro y bandas de hueso. En vez
+   de duplicar cada componente para los dos fondos, cada banda declara un
+   "lienzo" (.lienzo--oscuro / .lienzo--claro) que redefine las variables de
+   tinta, líneas y superficies. Los componentes solo usan var(--ink),
+   var(--linea), var(--sup)... y funcionan en cualquiera de los dos.
+   Regla: ningún componente escribe un color literal. Si algo va SIEMPRE sobre
+   oscuro aunque viva en un lienzo claro (la cabecera flotante, un rótulo
+   encima de una foto), usa las variables --sobre-oscuro-* y --velo.
+
+   ACENTO PAREADO: la arena sobre el vino, el vino vivo sobre el hueso.
+   Ninguno de los dos se lee en el fondo del otro, así que --acento cambia con
+   el lienzo en vez de ser un color fijo. Cambiar la paleta entera es tocar
+   este archivo y nada más.
+
+   ESCALONES DE TINTA: --ink para lo que se lee, --ink-2 para texto de apoyo
+   (ambos por encima de 4.5:1), --ink-3 SOLO para elementos decorativos.
+
+   RADIOS:
+     - Interactivo (botones, chips) ............................ --r-pill
+     - Tarjetas e imágenes ..................................... --r-card
+     - Elementos internos (inputs, celdas del calendario) ...... --r-inner
+     - Arco (retratos y fotos con remate de espejo) ............ --r-arco
+   El arco es la firma visual del sitio: repite la forma de los espejos de
+   barbería. Se usa en el hero y en el equipo, en ningún otro sitio.
+   ========================================================================== */
+
+/* ---------- Tipografía auto-alojada (sin peticiones a terceros) ---------- */
+
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/fraunces-latin-600.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/fraunces-latin-ext-600.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/fraunces-latin-700.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/fraunces-latin-ext-700.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/archivo-latin-400.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/archivo-latin-ext-400.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/archivo-latin-500.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/archivo-latin-ext-500.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/archivo-latin-600.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/archivo-latin-ext-600.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/archivo-latin-700.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/archivo-latin-ext-700.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ------------------------------ Tokens ---------------------------------- */
+
+:root {
+  color-scheme: dark;
+
+  /* Paleta cruda. No usar directamente en componentes: para eso están las
+     variables de lienzo de más abajo.
+
+     El vino viene del poste de barbería. Se eligió por encima del verde
+     oscuro porque el proyecto del despacho de abogados ya usa crema + verde
+     muy oscuro + latón, y puestos uno al lado del otro se leían como el
+     mismo trabajo dos veces. */
+  --vino-950: #1e0c11;
+  --vino-900: #2b1218;
+  --vino-850: #3a1a21;
+  --vino-800: #4a2129;
+  --vino-700: #5e2b34;
+
+  --hueso: #f4ede7;
+  --hueso-2: #fcf8f4;
+  --hueso-3: #e9ded4;
+
+  /* El acento no es un color, son dos: sobre vino manda la arena, sobre
+     hueso manda el vino vivo. Ninguno de los dos es legible en el fondo
+     del otro, así que cada lienzo escoge el suyo. */
+  --arena: #e8c9b0;
+  --arena-clara: #f3ddc9;
+  --vino-vivo: #8e2b36;
+  --vino-vivo-alto: #a5333f;
+
+  /* Estados. En una paleta de vino, un rojo de error se confunde con el
+     acento: el error se desplaza al naranja quemado, que sigue leyéndose
+     como alarma pero no se mezcla con la marca. */
+  --alerta: #c2410c;
+  --alerta-tenue: rgb(194 65 12 / 0.12);
+  --alerta-sobre-oscuro: #f0a080;
+  --ok: #2f7d53;
+  --ok-tenue: rgb(47 125 83 / 0.14);
+  --ok-sobre-oscuro: #86c9a0;
+
+  /* Tinta y líneas de lo que se compone SIEMPRE sobre oscuro, aunque viva
+     dentro de un lienzo claro: la cabecera flotante, el panel de resumen,
+     los rótulos encima de una foto. */
+  --sobre-oscuro-ink: #f4ede7;
+  --sobre-oscuro-ink-2: #c3a8ad;
+  --sobre-oscuro-ink-3: #a08087;
+  --sobre-oscuro-linea: rgb(244 237 231 / 0.13);
+  --sobre-oscuro-linea-fuerte: rgb(244 237 231 / 0.26);
+  --sobre-oscuro-sup: rgb(244 237 231 / 0.1);
+
+  /* Velos oscuros: para poner texto encima de una fotografía y para la
+     cabecera cuando deja de ser transparente. */
+  --velo: rgb(30 12 17 / 0.78);
+  --velo-fuerte: rgb(30 12 17 / 0.92);
+  --velo-cabecera: rgb(43 18 24 / 0.88);
+
+  /* Halo del hero: separa el titular del fondo plano sin meter una caja. */
+  --acento-halo: rgb(232 201 176 / 0.1);
+
+  /* Radios */
+  --r-pill: 999px;
+  --r-card: 6px;
+  --r-inner: 4px;
+  --r-arco: 14rem 14rem var(--r-card) var(--r-card);
+
+  /* Ritmo. Una barbería respira más que una ficha de producto: las bandas
+     son altas a propósito y cada una ocupa casi una pantalla. */
+  --ancho: 1280px;
+  --pad-x: clamp(20px, 5vw, 64px);
+  --pad-y: clamp(64px, 7vw, 116px);
+  --gap: clamp(14px, 1.6vw, 24px);
+
+  --alto-cabecera: 76px;
+
+  /* Curva única de animación */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Sombras: siempre tintadas al tono del fondo, nunca negro puro */
+  --sombra-sm: 0 1px 2px rgb(30 12 17 / 0.24);
+  --sombra-md: 0 14px 32px -18px rgb(30 12 17 / 0.5);
+  --sombra-lg: 0 40px 80px -40px rgb(30 12 17 / 0.7);
+}
+
+/* Lienzo oscuro: el fondo por defecto del sitio. */
+.lienzo--oscuro,
+:root {
+  --fondo: var(--vino-900);
+  --sup: var(--vino-850);
+  --sup-2: var(--vino-800);
+  --ink: var(--sobre-oscuro-ink);
+  --ink-2: var(--sobre-oscuro-ink-2);
+  --ink-3: var(--sobre-oscuro-ink-3);
+  --linea: var(--sobre-oscuro-linea);
+  --linea-fuerte: var(--sobre-oscuro-linea-fuerte);
+  --acento: var(--arena);
+  --acento-alto: var(--arena-clara);
+  --acento-texto: var(--arena);
+  --acento-tenue: rgb(232 201 176 / 0.14);
+  --acento-ink: var(--vino-950);
+  --estado-alerta: var(--alerta-sobre-oscuro);
+  --estado-ok: var(--ok-sobre-oscuro);
+}
+
+/* Lienzo claro: las bandas de hueso. */
+.lienzo--claro {
+  --fondo: var(--hueso);
+  --sup: var(--hueso-2);
+  --sup-2: var(--hueso-3);
+  --ink: #251218;
+  --ink-2: #6a4f56;
+  --ink-3: #9a7b83;
+  --linea: rgb(37 18 24 / 0.13);
+  --linea-fuerte: rgb(37 18 24 / 0.24);
+  --acento: var(--vino-vivo);
+  --acento-alto: var(--vino-vivo-alto);
+  --acento-texto: var(--vino-vivo);
+  --acento-tenue: rgb(142 43 54 / 0.12);
+  --acento-ink: var(--hueso-2);
+  --estado-alerta: var(--alerta);
+  --estado-ok: var(--ok);
+}
+
+.lienzo {
+  background: var(--fondo);
+  color: var(--ink);
+}
+
+/* ------------------------------- Reset ---------------------------------- */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+* { margin: 0; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+  /* La cabecera se queda fija arriba, así que el salto por anclas tiene que
+     descontar su altura o el título queda escondido debajo. */
+  scroll-padding-top: calc(var(--alto-cabecera) + 16px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
+body {
+  font-family: 'Archivo', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: var(--vino-900);
+  color: #f2eee3;
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-synthesis-weight: none;
+}
+
+img, picture, svg, video {
+  display: block;
+  max-width: 100%;
+}
+
+img { height: auto; }
+
+input, button, textarea, select {
+  font: inherit;
+  color: inherit;
+}
+
+button { background: none; border: none; }
+
+h1, h2, h3, h4 {
+  font-family: 'Fraunces', ui-serif, Georgia, 'Times New Roman', serif;
+  font-weight: 700;
+  letter-spacing: -0.022em;
+  line-height: 1.04;
+  text-wrap: balance;
+}
+
+p { text-wrap: pretty; }
+
+a { color: inherit; }
+
+ul, ol { list-style: none; padding: 0; }
+
+:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+::selection {
+  background: var(--vino-vivo);
+  color: var(--hueso-2);
+}
+
+/* --------------------------- Utilidades base ---------------------------- */
+
+.envoltura {
+  max-width: var(--ancho);
+  margin-inline: auto;
+  padding-inline: var(--pad-x);
+}
+
+.seccion {
+  padding-block: var(--pad-y);
+}
+
+.seccion--apretada { padding-block: clamp(44px, 4.5vw, 72px); }
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.salto-contenido {
+  position: absolute;
+  left: 16px;
+  top: -80px;
+  z-index: 100;
+  background: var(--vino-vivo);
+  color: var(--hueso-2);
+  padding: 12px 22px;
+  border-radius: var(--r-pill);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: top 0.18s var(--ease);
+}
+
+.salto-contenido:focus-visible { top: 16px; }
+
+/* Encabezado de sección */
+.encabezado { max-width: 44rem; }
+
+.encabezado--centro { margin-inline: auto; text-align: center; }
+
+.encabezado h2 {
+  font-size: clamp(2rem, 4.4vw, 3.5rem);
+}
+
+.encabezado h2 em {
+  font-style: italic;
+  color: var(--acento-texto);
+}
+
+.encabezado p {
+  margin-top: 16px;
+  color: var(--ink-2);
+  font-size: clamp(1rem, 1.1vw, 1.075rem);
+  line-height: 1.68;
+  max-width: 52ch;
+}
+
+.encabezado--centro p { margin-inline: auto; }
+
+.rotulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: 'Archivo', sans-serif;
+  font-size: 0.688rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--acento-texto);
+}
+
+.rotulo::before {
+  content: '';
+  width: 26px;
+  height: 1px;
+  background: currentColor;
+  flex: none;
+}
+
+.rotulo--solo::before { display: none; }
+
+/* ------------------------------- Botones -------------------------------- */
+
+/* El relleno sale del acento del lienzo: arena sobre vino, vino sobre hueso.
+   Un solo color no sirve para los dos fondos, porque el que contrasta en uno
+   desaparece en el otro. */
+.btn {
+  --btn-bg: var(--acento);
+  --btn-fg: var(--acento-ink);
+  --btn-borde: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  white-space: nowrap;
+  padding: 15px 30px;
+  border-radius: var(--r-pill);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  border: 1px solid var(--btn-borde);
+  font-weight: 600;
+  font-size: 0.938rem;
+  letter-spacing: -0.005em;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 0.22s var(--ease),
+    color 0.22s var(--ease),
+    border-color 0.22s var(--ease),
+    transform 0.16s var(--ease);
+}
+
+.btn:hover { background: var(--btn-bg-hover, var(--acento-alto)); }
+.btn:active { transform: translateY(1px) scale(0.99); }
+
+.btn svg { width: 18px; height: 18px; flex: none; }
+
+.btn--sm { padding: 10px 20px; font-size: 0.875rem; }
+.btn--lg { padding: 18px 36px; font-size: 1rem; }
+.btn--full { width: 100%; }
+
+/* Secundaria: contorno sobre el lienzo, sin relleno. */
+.btn--linea {
+  --btn-bg: transparent;
+  --btn-fg: var(--ink);
+  --btn-borde: var(--linea-fuerte);
+}
+.btn--linea:hover {
+  background: var(--sup);
+  --btn-borde: var(--ink-3);
+}
+
+.btn[disabled],
+.btn[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* -------------------------------- Chips --------------------------------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border-radius: var(--r-pill);
+  background: var(--sup);
+  border: 1px solid var(--linea);
+  color: var(--ink-2);
+  font-size: 0.781rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.chip svg { width: 15px; height: 15px; color: var(--acento-texto); flex: none; }
+
+/* ----------------------- Revelado al hacer scroll ------------------------ */
+/* Solo se aplica si JS está activo. Sin JS todo se ve de inmediato.        */
+
+.js .revelar {
+  opacity: 0;
+  transform: translateY(24px);
+  will-change: opacity, transform;
+}
+
+.js .revelar.dentro {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.75s var(--ease) var(--revelar-espera, 0ms),
+    transform 0.75s var(--ease) var(--revelar-espera, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .js .revelar {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
