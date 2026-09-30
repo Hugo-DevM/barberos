@@ -1,8 +1,12 @@
 # Navaja & Filo
 
-Landing page de barbería con **sistema de reservas en línea** y **panel de
-agenda** para el negocio. Sitio estático construido con Astro, sin framework de
-interfaz; la persistencia va contra Supabase desde el navegador.
+Landing page de barbería con **sistema de reservas en línea**, **anticipo por
+transferencia (SPEI)** y **panel de agenda** para el negocio. Sitio estático
+construido con Astro, sin framework de interfaz; la persistencia va contra
+Supabase desde el navegador.
+
+Sin mensualidades de software de agenda y sin comisión de pasarela: el anticipo
+se transfiere directo a la cuenta del negocio.
 
 > **Navaja & Filo es una marca ficticia.** Nombres, precios, dirección,
 > teléfonos, testimonios y cifras son de muestra. Las fotos vienen de bancos
@@ -33,7 +37,8 @@ Son dos piezas que hablan por un solo sitio, `src/lib/reservas.ts`:
 | Pieza | Dónde | Qué hace |
 | --- | --- | --- |
 | Reserva del cliente | `#reservar` en la portada | Elige servicio, barbero, día y hora; manda la cita |
-| Agenda del negocio | `/panel` | Lista las citas, filtra y cambia su estado |
+| Anticipo | pantalla de confirmación | Datos de la transferencia y subida del comprobante |
+| Agenda del negocio | `/panel` | Lista las citas, revisa anticipos y cambia su estado |
 
 El cliente elige en cinco pasos: servicio → barbero → día → hora → sus datos.
 El calendario no ofrece huecos inventados: al cargar la página se pide de una
@@ -73,13 +78,15 @@ algunas importaciones de Outlook la truncan.
 | Estado de la cita | ¿Bloquea el hueco de ese barbero? |
 | --- | --- |
 | Sin confirmar (`pendiente`) | **Sí**, desde el instante en que se reserva |
+| Sin confirmar, esperando anticipo | Sí, hasta que se agota el plazo |
 | Confirmada | Sí |
 | Atendida (`completada`) | Sí |
 | Cancelada | **No**, el hueco vuelve a ofrecerse |
 
 No hace falta que la barbería confirme nada para que el hueco quede apartado:
-reservar ya lo aparta. Lo único que lo libera es **cancelar la cita desde el
-panel**. Marcarla como atendida no la libera.
+reservar ya lo aparta. Lo libera **cancelar la cita desde el panel** o, en los
+servicios con anticipo, que se agote el plazo sin recibirlo. Marcarla como
+atendida no la libera.
 
 Las horas ocupadas **se muestran, tachadas y sin poder pulsarse**, en vez de
 desaparecer. Una lista con tres horas sueltas no dice si la barbería abre poco
@@ -126,13 +133,112 @@ Tres capas, de fuera hacia dentro:
    `HORA_OCUPADA`, el sitio lo traduce a "alguien apartó ese hueco hace un
    momento" y recarga la agenda.
 
+## Anticipo por transferencia (SPEI)
+
+Un servicio puede pedir un anticipo para apartar el lugar. En la demo solo lo
+pide el **ritual completo** ($150 de $520): son 75 minutos de silla, y es la
+cita que más cuesta cuando no llega nadie.
+
+Se cobra por **transferencia, no con tarjeta**, y eso es una decisión, no una
+carencia. Una pasarela cobra comisión por cada cobro (≈3.6% + $3 MXN en México);
+con SPEI el anticipo llega completo a la cuenta del negocio. Lo que sí cuesta es
+tiempo: alguien tiene que mirar el comprobante y darle "verificar". Son unos
+segundos por cita.
+
+**Nunca se piden datos de tarjeta.** El sitio no tiene forma de cobrar con
+tarjeta, y por lo tanto no entra en las obligaciones de PCI-DSS.
+
+### Cómo va el anticipo, paso a paso
+
+1. El cliente elige el servicio. La insignia del anticipo se ve **desde el
+   primer paso**, no al final: enterarse de que hay que transferir después de
+   llenar todo el formulario es lo que hace abandonar.
+2. Reserva. La cita nace `pendiente` con el pago en `esperando`, y el hueco
+   queda apartado con un reloj corriendo.
+3. La pantalla de confirmación le da el monto, el banco, el titular, la **CLABE
+   con botón de copiar** y el **folio como referencia**. Nadie teclea 18 dígitos
+   sin equivocarse, y un dígito mal puesto manda el dinero a otra cuenta.
+4. Transfiere y sube la captura. El pago pasa a `en_revision` y **el reloj se
+   detiene**: el cliente ya hizo su parte, el hueco no se suelta mientras la
+   barbería revisa.
+5. En el panel, la ficha "Anticipos por revisar" se enciende. Se ve el
+   comprobante dentro de la propia fila y se aprueba o se rechaza.
+6. Al aprobar, el pago queda `verificado` **y la cita pasa a `confirmada` en la
+   misma operación**. Al rechazar se le anota el motivo, que el cliente ve, y se
+   le abre otro plazo para mandar el comprobante correcto.
+
+### Estados del pago
+
+| `pago_estado` | Qué significa |
+| --- | --- |
+| `no_requiere` | El servicio se paga completo en el local |
+| `esperando` | Falta la transferencia; el reloj corre |
+| `en_revision` | Hay comprobante y la barbería no lo ha visto |
+| `verificado` | Dado por bueno; la cita queda confirmada |
+| `rechazado` | No cuadró; el cliente puede mandar otro |
+
+### El plazo, y por qué es obligatorio
+
+Una cita con anticipo aparta el hueco desde que se reserva. Si nadie lo
+liberara, cada cliente que reserva y no transfiere dejaría un hueco muerto: en
+dos semanas la agenda se llena de apartados falsos y la barbería se queda sin
+horas que ofrecer.
+
+`liberar_vencidas()` cancela los apartados vencidos. Se llama desde
+`reservar_cita` (antes de buscar hueco) y desde el panel al refrescar, así que
+**no hace falta cron ni servidor**. No alcanza con filtrarlos al leer: la
+restricción de exclusión solo ignora las citas canceladas, así que hay que
+cancelarlos de verdad o el `INSERT` seguiría chocando con un apartado que ya no
+vale.
+
+El plazo son **3 horas**, y nunca se pasa de la hora de la cita: apartar hasta
+las 8 de la noche un hueco que era a las 6 no tiene sentido. Para cambiarlo,
+`plazo_anticipo()` en `supabase/schema.sql` **y** `pago.plazoHoras` en
+`src/data/barberia.ts`.
+
+### El precio no se le cree al navegador
+
+La versión anterior de `reservar_cita` recibía el nombre del servicio, el precio
+y la duración desde el navegador. Con anticipos eso es un agujero: cualquiera
+abre la consola y reserva el ritual con un anticipo de un peso.
+
+Ahora existe la tabla **`servicios`**, y es la autoridad. Lo único que manda el
+cliente es **qué** servicio eligió; el precio, la duración y el anticipo salen
+de la base, y lo que vuelve es lo que quedó guardado. La firma antigua de la
+función se elimina explícitamente en el `schema.sql`, porque PostgreSQL trata
+dos firmas distintas como dos funciones distintas y dejarla viva sería dejar
+abierta la puerta que `servicios` vino a cerrar.
+
+### Los comprobantes
+
+Van a un bucket **privado** de Supabase Storage llamado `comprobantes`.
+
+- `anon` puede **subir pero no leer**. Si pudiera leer, cualquiera vería los
+  comprobantes bancarios de los demás clientes.
+- Tampoco puede sobrescribir: no hay política de `UPDATE` para `anon`, y cada
+  archivo va a una ruta con un UUID nuevo.
+- El panel, que sí está autenticado, los abre con una **URL firmada de 5
+  minutos**: alcanza para revisar y no deja un enlace vivo circulando.
+- Tope de 5 MB y solo imágenes o PDF, impuesto en el bucket además de en el
+  navegador.
+
+Para enganchar la captura a la cita se usa `registrar_comprobante`, que pide
+**folio y teléfono**: el folio va en la pantalla y se manda por WhatsApp, así que
+por sí solo no basta para autorizar un cambio.
+
+En modo demo no hay Storage. La captura se guarda en `localStorage` como data
+URL si pesa menos de 400 KB, para que el panel pueda enseñarla; por encima solo
+se guarda el nombre, porque meter una foto de 4 MB en base64 revienta la cuota
+del navegador y se perdería la cita entera, no solo el comprobante.
+
 ## Conectar Supabase
 
 1. Crea un proyecto en [supabase.com](https://supabase.com) (el plan gratuito
    sobra para una barbería).
 2. Abre **SQL Editor**, pega entero `supabase/schema.sql` y ejecútalo. Crea las
-   tablas, las políticas de seguridad, las dos funciones y siembra horarios y
-   barberos. Es idempotente: puedes volver a correrlo.
+   tablas, las políticas de seguridad, las funciones, el bucket privado
+   `comprobantes` y siembra horarios, barberos y servicios. Es idempotente:
+   puedes volver a correrlo.
 3. Copia `.env.example` a `.env` y rellena las dos variables con lo que aparece
    en **Settings → API**.
 4. Da de alta al personal en **Authentication → Users**, con correo y
@@ -144,11 +250,17 @@ Tres capas, de fuera hacia dentro:
 | Tabla | Anónimo | Personal autenticado |
 | --- | --- | --- |
 | `horarios`, `barberos`, `bloqueos` | Lectura | Todo |
+| `servicios` | Lectura (solo activos) | Todo |
 | `citas` | **Nada** | Todo |
+| Bucket `comprobantes` | **Solo subir** | Leer y borrar |
 
 Los datos del cliente —nombre, teléfono, correo— no son legibles por el rol
 anónimo. Para pintar el calendario se usa la función `disponibilidad`, que
 devuelve solo qué barbero está ocupado, cuándo y cuánto: ni un dato personal.
+
+Sin política de `INSERT` sobre `citas`, la única entrada es `reservar_cita`; y
+sin política de `UPDATE`, la única forma de adjuntar un comprobante es
+`registrar_comprobante`.
 
 La clave `anon` viaja al navegador y eso es correcto: es una clave pública. Lo
 que protege la agenda son las políticas de fila, no el secreto de esa clave.
@@ -159,11 +271,18 @@ que protege la agenda son las políticas de fila, no el secreto de esa clave.
 `/panel` está marcado `noindex` y no aparece enlazado más que en el pie.
 
 - Filtros por rango: hoy, mañana, próximos 7 días, todas las próximas, últimos
-  30 días. Más una casilla para ver solo las que faltan por confirmar.
+  30 días. Más dos casillas —solo sin confirmar, solo anticipos por revisar— que
+  se acumulan.
+- La ficha **"Anticipos por revisar"** se enciende cuando hay comprobantes
+  esperando. Es lo único del tablero sobre lo que hay que actuar; en cero se
+  queda callada, para que el color signifique algo cuando aparece.
 - Cada cita trae el teléfono como enlace de llamada y un enlace de WhatsApp con
   el mensaje de confirmación ya escrito.
 - Estados: sin confirmar → confirmada → atendida, y cancelada desde cualquiera.
   Cancelar pide confirmación, porque libera el hueco.
+- En las citas con anticipo sin resolver **no se ofrece el botón de confirmar a
+  mano**: se confirman verificando el pago. Si el panel lo ofreciera, quedaría
+  una cita confirmada con el anticipo todavía en revisión.
 - La franja de color a la izquierda de cada fila deja ver el estado de toda la
   agenda sin leer una sola insignia.
 
@@ -185,9 +304,9 @@ cuanto existen credenciales de Supabase, esa contraseña deja de funcionar y la
 
 Los componentes no llevan texto propio: todo sale de `src/data/barberia.ts`.
 
-### Los dos sitios donde hay que cambiar lo mismo
+### Los tres sitios donde hay que cambiar lo mismo
 
-Hay dos duplicaciones a propósito, y conviene conocerlas:
+Hay tres duplicaciones a propósito, y conviene conocerlas:
 
 1. **Los horarios.** `contacto.horarios` en el archivo de datos es lo que se
    *muestra* ("Martes a viernes, 11:00 – 20:30"). La tabla `horarios` de
@@ -197,6 +316,16 @@ Hay dos duplicaciones a propósito, y conviene conocerlas:
    tabla `barberos` lleva solo lo que el motor de reservas necesita para
    repartir citas. Los `slug` tienen que coincidir, o la página ofrecerá un
    barbero que la base no conoce.
+3. **Los servicios.** `servicios` en el archivo de datos es lo que se *pinta*
+   (textos, fotos, qué incluye). La tabla `servicios` de Supabase es lo que se
+   *cobra*: precio, duración y anticipo. **Si no cuadran, el cliente ve un
+   número y se le cobra otro.** Al cambiar un precio, una duración o un
+   anticipo, cámbialo en los dos lados.
+
+También están emparejados `plazo_anticipo()` del `schema.sql` con
+`pago.plazoHoras` del archivo de datos, y `c_tope_por_telefono` con
+`TOPE_POR_TELEFONO` de `src/lib/reservas.ts`. En los dos casos el primero es el
+que manda y el segundo es el que usa el modo demo.
 
 ### Sistema de diseño
 
@@ -367,11 +496,23 @@ que montar un banner de cookies antes de concederlo.
 - [ ] Ajustar el favicon y el logotipo si la marca tiene uno propio.
 - [ ] Revisar `src/pages/aviso-de-privacidad.astro`: es una plantilla, no
       asesoría legal. Que lo vea quien corresponda.
-- [ ] Sembrar en Supabase los horarios y los barberos reales, y dar de alta las
-      cuentas del personal.
+- [ ] **Poner la CLABE y el titular reales en `pago` de
+      `src/data/barberia.ts`, y revisarlos dos veces.** Los de la plantilla son
+      inventados; un dígito mal escrito manda el dinero de los clientes a la
+      cuenta de un desconocido.
+- [ ] Decidir qué servicios piden anticipo y cuánto, en el archivo de datos **y**
+      en la tabla `servicios`. Para no pedir ninguno, `anticipo` en 0 en los dos
+      lados: el sitio deja de enseñar toda la pantalla de transferencia.
+- [ ] Si no hay anticipos, quitar la sección del comprobante del aviso de
+      privacidad, que entonces sobra.
+- [ ] Sembrar en Supabase los horarios, los barberos y los servicios reales, y
+      dar de alta las cuentas del personal.
+- [ ] Comprobar que el bucket `comprobantes` existe y está en **privado**.
 - [ ] Comprobar los datos estructurados de `src/layouts/Base.astro` con la
       [prueba de resultados enriquecidos](https://search.google.com/test/rich-results).
 - [ ] Reservar una cita de prueba de punta a punta y confirmarla desde el panel.
+- [ ] Si hay anticipos: hacer una transferencia real de prueba, subir el
+      comprobante y verificarlo desde el panel.
 
 ## Estructura
 

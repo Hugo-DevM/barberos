@@ -92,14 +92,26 @@ export const cifras = [
   { valor: '4.9', sufijo: '/ 5', texto: 'promedio de 1,240 reseñas' },
 ] as const;
 
-/* Los `slug` y `duracionMin` viajan a la base de datos cuando alguien
-   reserva. Si cambias un slug, las citas viejas conservan el anterior. */
+/* OJO: de estos servicios, lo que se PINTA sale de aquí, pero lo que VALE sale
+   de la tabla `servicios` de Supabase. `reservar_cita` lee de la base el
+   precio, la duración y el anticipo, y descarta lo que mande el navegador: si
+   el precio viajara en la petición, cualquiera podría abrir la consola y
+   reservar el ritual con un anticipo de un peso.
+
+   Consecuencia práctica: si cambias un precio, una duración o un anticipo,
+   cámbialo TAMBIÉN en el bloque de `insert into public.servicios` de
+   supabase/schema.sql. Si no cuadran, el cliente ve un número y se le cobra
+   otro.
+
+   `anticipo` en 0 = se paga todo en el local. Mayor que 0 = hay que
+   transferir esa cantidad para que el hueco quede apartado. */
 export const servicios = [
   {
     slug: 'corte-clasico',
     nombre: 'Corte clásico',
     precio: 320,
     duracionMin: 45,
+    anticipo: 0,
     texto:
       'Tijera y máquina, lavado con agua tibia y peinado final. Si llegas con una foto la miramos juntos y te decimos si tu pelo da para eso antes de empezar.',
     incluye: ['Consulta de forma', 'Lavado y masaje', 'Peinado con producto'],
@@ -111,6 +123,7 @@ export const servicios = [
     nombre: 'Barba completa',
     precio: 260,
     duracionMin: 30,
+    anticipo: 0,
     texto:
       'Recorte, perfilado y aceite. Trabajamos la forma según tu mandíbula, no según lo que se ve bien en el maniquí del catálogo.',
     incluye: ['Toalla caliente', 'Perfilado a navaja', 'Aceite y bálsamo'],
@@ -122,6 +135,7 @@ export const servicios = [
     nombre: 'Afeitado a navaja',
     precio: 340,
     duracionMin: 40,
+    anticipo: 0,
     texto:
       'El de toda la vida: dos pasadas, espuma batida en bol y toalla caliente antes y después. Sales con la cara pidiendo salir a la calle.',
     incluye: ['Espuma batida a mano', 'Dos pasadas de navaja', 'Cierre con bálsamo frío'],
@@ -133,6 +147,7 @@ export const servicios = [
     nombre: 'Ritual completo',
     precio: 520,
     duracionMin: 75,
+    anticipo: 150,
     texto:
       'Corte, barba y afeitado de cuello en una sola sesión. Es la cita que agenda la gente antes de una boda o de una foto que va a durar años colgada.',
     incluye: ['Corte completo', 'Barba trabajada', 'Cerveza o café de la casa'],
@@ -202,6 +217,54 @@ export const reserva = {
   diasDeAntelacion: 45,
   /* El calendario no ofrece huecos que empiecen antes de este margen. */
   margenMinutos: 60,
+} as const;
+
+/* ==========================================================================
+   ANTICIPO POR TRANSFERENCIA
+   --------------------------------------------------------------------------
+   ⚠️ DATOS BANCARIOS DE MUESTRA. La CLABE y el titular de abajo son inventados
+   y no corresponden a ninguna cuenta real. Antes de publicar hay que ponerlos
+   los del negocio — y revisarlos dos veces, porque un dígito mal escrito manda
+   el dinero de los clientes a la cuenta de un desconocido.
+
+   Por qué transferencia y no tarjeta: una pasarela cobra comisión por cada
+   cobro (≈3.6% + $3 MXN en México). Con SPEI el anticipo llega completo a la
+   cuenta del negocio y no se le va nada en comisiones. El costo que sí existe
+   es de tiempo: alguien de la barbería tiene que mirar el comprobante y darle
+   "verificar" en el panel. Son unos segundos por cita.
+
+   El comprobante NO se compara contra el banco automáticamente: eso requiere
+   banca empresarial con conciliación, que una barbería no tiene. Lo que hace
+   el sistema es juntar la captura con el folio y dejárselo listo a quien
+   revisa.
+   ========================================================================== */
+export const pago = {
+  /* Horas que se le aparta el hueco a quien todavía no transfiere. Tiene que
+     coincidir con `plazo_anticipo()` de supabase/schema.sql. */
+  plazoHoras: 3,
+
+  banco: 'BBVA México',
+  titular: 'Navaja & Filo S.A. de C.V.',
+  clabe: '012 180 00123456789 5',
+  /* Versión sin espacios, para el botón de copiar. */
+  clabePlana: '012180001234567895',
+
+  titulo: 'Falta el anticipo para dejarlo apartado',
+  texto:
+    'El ritual completo son 75 minutos de silla, así que pedimos un anticipo para apartarlo. Se descuenta del total: el día de la cita pagas la diferencia.',
+  /* Qué pasa si no llega. Se dice claro y desde el principio: enterarse de
+     que perdiste el lugar es mucho peor que leerlo antes. */
+  aviso:
+    'Si el anticipo no llega en las próximas horas, el hueco se libera solo y vuelve a quedar disponible para otra persona.',
+  instrucciones: [
+    'Transfiere el anticipo a la CLABE de arriba desde tu app del banco.',
+    'Pon el folio de tu cita en el concepto o referencia.',
+    'Sube la captura del comprobante aquí abajo.',
+  ],
+  /* Formatos que acepta la subida. Tiene que coincidir con
+     `allowed_mime_types` del bucket en supabase/schema.sql. */
+  formatos: ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf'],
+  pesoMaximoMb: 5,
 } as const;
 
 export const galeria = {

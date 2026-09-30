@@ -7,6 +7,7 @@ import {
   BARBERO_INDIFERENTE,
   contacto,
   CTA_PRINCIPAL,
+  pago,
 } from '../data/barberia';
 
 const precio = new Intl.NumberFormat('es-MX', {
@@ -54,6 +55,7 @@ function iniciales(nombre: string) {
                   data-duracion={servicio.duracionMin}
                   data-nombre={servicio.nombre}
                   data-precio={servicio.precio}
+                  data-anticipo={servicio.anticipo}
                   checked={i === 0}
                 />
                 <span class="opcion__caja">
@@ -63,6 +65,16 @@ function iniciales(nombre: string) {
                     <span class="opcion__punto" aria-hidden="true">·</span>
                     <span>{servicio.duracionMin} min</span>
                   </span>
+                  {
+                    /* El anticipo se avisa aquí, en el primer paso, no al final.
+                       Enterarse de que hay que transferir después de llenar todo
+                       el formulario es la clase de sorpresa que hace abandonar. */
+                    servicio.anticipo > 0 && (
+                      <span class="opcion__anticipo">
+                        {precio.format(servicio.anticipo)} de anticipo
+                      </span>
+                    )
+                  }
                 </span>
               </label>
             ))
@@ -276,9 +288,19 @@ function iniciales(nombre: string) {
           <strong id="res-total">—</strong>
         </div>
 
+        <!-- Solo aparece en los servicios que piden anticipo. El resto de la
+             lista no debe cargar con un renglón que dice "$0". -->
+        <div class="resumen__anticipo" id="res-anticipo-caja" hidden>
+          <span>Anticipo para apartar</span>
+          <strong id="res-anticipo">—</strong>
+          <small id="res-resta">—</small>
+        </div>
+
         <p class="resumen__nota">
           <Icon name="ph:check-circle" aria-hidden="true" />
-          El hueco queda apartado en cuanto confirmas. Puedes cancelar hasta 2 horas antes.
+          <span id="res-nota"
+            >El hueco queda apartado en cuanto confirmas. Puedes cancelar hasta 2 horas antes.</span
+          >
         </p>
       </aside>
 
@@ -290,7 +312,7 @@ function iniciales(nombre: string) {
 
         <p class="enviar__nota">
           <Icon name="ph:lock-simple" aria-hidden="true" />
-          No pedimos tarjeta. Pagas en el local, al terminar.
+          <span id="enviar-nota">No pedimos tarjeta. Pagas en el local, al terminar.</span>
         </p>
       </div>
 
@@ -328,6 +350,109 @@ function iniciales(nombre: string) {
       </dl>
 
       <p class="confirmada__texto" id="conf-texto"></p>
+
+      <!-- ---------------------- Anticipo por SPEI ---------------------- -->
+      <!-- Solo se enseña cuando el servicio elegido pide anticipo. Va ANTES de
+           los botones de calendario: mientras falte el depósito, agregar la
+           cita al calendario no es lo siguiente que hay que hacer. -->
+      <section class="anticipo" id="anticipo" hidden aria-labelledby="anticipo-titulo">
+        <div class="anticipo__cabeza">
+          <Icon name="ph:hourglass-high" aria-hidden="true" />
+          <h4 id="anticipo-titulo">{pago.titulo}</h4>
+        </div>
+
+        <p class="anticipo__texto">{pago.texto}</p>
+        <p class="anticipo__reloj" id="anticipo-reloj" role="status" aria-live="polite"></p>
+
+        <dl class="anticipo__datos">
+          <div>
+            <dt>Monto a transferir</dt>
+            <dd class="anticipo__monto" id="anticipo-monto">—</dd>
+          </div>
+          <div>
+            <dt>Banco</dt>
+            <dd>{pago.banco}</dd>
+          </div>
+          <div>
+            <dt>Titular</dt>
+            <dd>{pago.titular}</dd>
+          </div>
+          <div>
+            <dt>CLABE</dt>
+            <dd class="anticipo__copiable">
+              <span class="anticipo__dato">{pago.clabe}</span>
+              <button
+                class="anticipo__copiar"
+                type="button"
+                data-copiar={pago.clabePlana}
+                data-etiqueta="CLABE"
+              >
+                <Icon name="ph:copy" aria-hidden="true" />
+                <span>Copiar</span>
+              </button>
+            </dd>
+          </div>
+          <div>
+            <dt>Concepto o referencia</dt>
+            <dd class="anticipo__copiable">
+              <span class="anticipo__dato" id="anticipo-folio">—</span>
+              <button
+                class="anticipo__copiar"
+                type="button"
+                id="copiar-folio"
+                data-etiqueta="folio"
+              >
+                <Icon name="ph:copy" aria-hidden="true" />
+                <span>Copiar</span>
+              </button>
+            </dd>
+          </div>
+        </dl>
+
+        <ol class="anticipo__pasos">
+          {pago.instrucciones.map((paso) => <li>{paso}</li>)}
+        </ol>
+
+        <form class="anticipo__subida" id="form-comprobante" novalidate>
+          <label class="anticipo__etiqueta" for="comprobante">
+            Captura del comprobante
+            <span class="anticipo__formatos">
+              JPG, PNG, WEBP, HEIC o PDF · hasta {pago.pesoMaximoMb} MB
+            </span>
+          </label>
+
+          <input
+            type="file"
+            id="comprobante"
+            name="comprobante"
+            accept={pago.formatos.join(',')}
+          />
+
+          <button class="btn" type="submit" id="comprobante-enviar">
+            <span class="comprobante__texto">Enviar comprobante</span>
+            <Icon name="ph:circle-notch" class="enviar__giro" aria-hidden="true" />
+          </button>
+        </form>
+
+        <!-- Sustituye al formulario en cuanto la captura queda registrada. -->
+        <div class="anticipo__listo" id="anticipo-listo" hidden>
+          <Icon name="ph:check-circle" aria-hidden="true" />
+          <div>
+            <strong>Recibimos tu comprobante</strong>
+            <p>
+              Tu lugar ya no se libera. Lo revisamos y te confirmamos por WhatsApp; si algo no
+              cuadra te escribimos al teléfono que nos dejaste.
+            </p>
+          </div>
+        </div>
+
+        <p class="anticipo__aviso">
+          <Icon name="ph:warning-circle" aria-hidden="true" />
+          {pago.aviso}
+        </p>
+
+        <p class="aviso" id="comprobante-aviso" role="status" aria-live="polite" hidden></p>
+      </section>
 
       <div class="confirmada__botones">
         <!-- Cada calendario se abre por su propia vía. Descargar un .ics y
@@ -488,9 +613,30 @@ function iniciales(nombre: string) {
   .opcion__precio { font-weight: 600; color: var(--acento-texto); }
   .opcion__punto { color: var(--ink-3); }
 
+  /* Etiqueta del anticipo. Se marca con el color de alerta, no con el de
+     acento: es una condición de la reserva, no una ventaja del servicio. */
+  .opcion__anticipo {
+    align-self: start;
+    margin-top: 2px;
+    padding: 2px 8px;
+    border-radius: var(--r-pill);
+    background: var(--alerta-tenue);
+    color: var(--alerta);
+    font-size: 0.688rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
   .opcion input:checked + .opcion__caja .opcion__nombre { color: var(--sobre-oscuro-ink); }
   .opcion input:checked + .opcion__caja .opcion__meta { color: var(--sobre-oscuro-ink-2); }
   .opcion input:checked + .opcion__caja .opcion__precio { color: var(--arena); }
+
+  /* Sobre la ficha elegida, que va en vino, el naranja del aviso pierde el
+     contraste: se cambia por la variante clara. */
+  .opcion input:checked + .opcion__caja .opcion__anticipo {
+    background: rgb(244 237 231 / 0.14);
+    color: var(--alerta-sobre-oscuro);
+  }
 
   /* Barberos: la caja se apila con el avatar arriba. */
   .opcion--barbero .opcion__caja {
@@ -784,6 +930,36 @@ function iniciales(nombre: string) {
     font-variant-numeric: tabular-nums;
   }
 
+  /* El anticipo cuelga del total, no compite con él: el total sigue siendo la
+     cifra grande y esto es una condición para apartar. */
+  .resumen__anticipo {
+    display: grid;
+    gap: 2px;
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: var(--r-inner);
+    background: rgb(244 237 231 / 0.08);
+    border-left: 2px solid var(--alerta-sobre-oscuro);
+  }
+
+  .resumen__anticipo span {
+    font-size: 0.75rem;
+    color: var(--sobre-oscuro-ink-2);
+  }
+
+  .resumen__anticipo strong {
+    font-family: 'Archivo', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--alerta-sobre-oscuro);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .resumen__anticipo small {
+    font-size: 0.688rem;
+    color: var(--sobre-oscuro-ink-3);
+  }
+
   .resumen__nota {
     display: flex;
     gap: 8px;
@@ -932,6 +1108,238 @@ function iniciales(nombre: string) {
     font-size: 0.875rem;
     line-height: 1.6;
     color: var(--ink-2);
+  }
+
+  /* --------------------------- Anticipo por SPEI --------------------------- */
+
+  /* La confirmación va centrada, pero aquí hay datos que se leen y se copian:
+     una CLABE centrada se sigue con el dedo peor que una alineada a la
+     izquierda. El bloque rompe el centrado a propósito. */
+  .anticipo {
+    margin-top: 26px;
+    padding: clamp(18px, 2.4vw, 26px);
+    border: 1px solid var(--linea-fuerte);
+    border-top: 3px solid var(--alerta);
+    border-radius: var(--r-card);
+    background: var(--sup);
+    text-align: left;
+  }
+
+  .anticipo__cabeza {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .anticipo__cabeza :global(svg) {
+    width: 22px;
+    height: 22px;
+    flex: none;
+    color: var(--alerta);
+  }
+
+  .anticipo__cabeza h4 {
+    font-size: clamp(1.05rem, 1.8vw, 1.25rem);
+    line-height: 1.3;
+  }
+
+  .anticipo__texto {
+    margin-top: 10px;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--ink-2);
+  }
+
+  /* El reloj es lo único que cambia solo en esta pantalla, así que se separa
+     del resto con fondo propio: hay que encontrarlo de reojo al volver. */
+  .anticipo__reloj {
+    margin-top: 14px;
+    padding: 9px 13px;
+    border-radius: var(--r-inner);
+    background: var(--alerta-tenue);
+    color: var(--alerta);
+    font-size: 0.813rem;
+    font-weight: 600;
+  }
+
+  .anticipo__reloj[data-agotado='true'] {
+    background: var(--sup-2);
+    color: var(--ink-2);
+    font-weight: 500;
+  }
+
+  .anticipo__datos {
+    display: grid;
+    gap: 14px;
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid var(--linea);
+  }
+
+  .anticipo__datos dt {
+    font-size: 0.688rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  .anticipo__datos dd {
+    margin-top: 4px;
+    font-size: 0.925rem;
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  /* Monto y CLABE en tabular: los dígitos alineados se comparan contra la
+     pantalla del banco sin contarlos uno por uno. */
+  .anticipo__monto {
+    font-family: 'Archivo', sans-serif;
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em;
+    color: var(--acento-texto) !important;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .anticipo__copiable {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .anticipo__dato {
+    font-family: 'Archivo', sans-serif;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    user-select: all;
+  }
+
+  .anticipo__copiar {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border: 1px solid var(--linea-fuerte);
+    border-radius: var(--r-pill);
+    background: transparent;
+    color: var(--acento-texto);
+    font-size: 0.719rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
+  }
+
+  .anticipo__copiar:hover { border-color: var(--acento); background: var(--acento-tenue); }
+
+  .anticipo__copiar[data-copiado='true'] {
+    border-color: var(--ok);
+    color: var(--ok);
+    background: var(--ok-tenue);
+  }
+
+  .anticipo__copiar :global(svg) { width: 13px; height: 13px; }
+
+  .anticipo__pasos {
+    display: grid;
+    gap: 8px;
+    margin-top: 20px;
+    padding: 0 0 0 20px;
+    font-size: 0.844rem;
+    line-height: 1.55;
+    color: var(--ink-2);
+  }
+
+  .anticipo__pasos li::marker { color: var(--acento-texto); font-weight: 700; }
+
+  .anticipo__subida {
+    display: grid;
+    gap: 10px;
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--linea);
+  }
+
+  .anticipo__etiqueta {
+    display: grid;
+    gap: 2px;
+    font-size: 0.813rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .anticipo__formatos {
+    font-size: 0.688rem;
+    font-weight: 400;
+    color: var(--ink-3);
+  }
+
+  .anticipo__subida input[type='file'] {
+    width: 100%;
+    padding: 10px;
+    border: 1px dashed var(--linea-fuerte);
+    border-radius: var(--r-inner);
+    background: var(--fondo);
+    font: inherit;
+    font-size: 0.813rem;
+    color: var(--ink-2);
+  }
+
+  .anticipo__subida input[type='file']::file-selector-button {
+    margin-right: 10px;
+    padding: 6px 12px;
+    border: 1px solid var(--linea-fuerte);
+    border-radius: var(--r-pill);
+    background: var(--sup-2);
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  .anticipo__subida .btn { justify-self: start; }
+
+  .anticipo__listo {
+    display: flex;
+    gap: 12px;
+    margin-top: 22px;
+    padding: 16px;
+    border-radius: var(--r-inner);
+    background: var(--ok-tenue);
+  }
+
+  .anticipo__listo :global(svg) {
+    width: 22px;
+    height: 22px;
+    flex: none;
+    color: var(--ok);
+  }
+
+  .anticipo__listo strong { font-size: 0.925rem; color: var(--ink); }
+
+  .anticipo__listo p {
+    margin-top: 4px;
+    font-size: 0.813rem;
+    line-height: 1.55;
+    color: var(--ink-2);
+  }
+
+  .anticipo__aviso {
+    display: flex;
+    gap: 8px;
+    margin-top: 18px;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--ink-3);
+  }
+
+  .anticipo__aviso :global(svg) {
+    width: 15px;
+    height: 15px;
+    flex: none;
+    margin-top: 1px;
   }
 
   .confirmada__botones {
@@ -1220,11 +1628,14 @@ function iniciales(nombre: string) {
     diaSemana,
     diasEnMes,
     sumarDias,
+    subirComprobante,
+    tiempoRestante,
     ErrorReserva,
     HAY_SUPABASE,
     type Agenda,
+    type EstadoPago,
   } from '../lib/reservas';
-  import { reserva, contacto, marca, servicios as catalogo } from '../data/barberia';
+  import { reserva, contacto, marca, pago, servicios as catalogo } from '../data/barberia';
 
   const formulario = document.getElementById('form-reserva') as HTMLFormElement | null;
   if (formulario) iniciar(formulario);
@@ -1271,6 +1682,11 @@ function iniciales(nombre: string) {
       dia: document.getElementById('res-dia')!,
       hora: document.getElementById('res-hora')!,
       total: document.getElementById('res-total')!,
+      anticipoCaja: document.getElementById('res-anticipo-caja')!,
+      anticipo: document.getElementById('res-anticipo')!,
+      resta: document.getElementById('res-resta')!,
+      nota: document.getElementById('res-nota')!,
+      notaEnviar: document.getElementById('enviar-nota')!,
     };
 
     function servicioElegido() {
@@ -1280,6 +1696,7 @@ function iniciales(nombre: string) {
         nombre: radio.dataset.nombre!,
         precio: Number(radio.dataset.precio),
         duracion: Number(radio.dataset.duracion),
+        anticipo: Number(radio.dataset.anticipo ?? 0),
       };
     }
 
@@ -1466,6 +1883,26 @@ function iniciales(nombre: string) {
       resumen.servicio.textContent = `${servicio.nombre} · ${servicio.duracion} min`;
       resumen.barbero.textContent = barbero.nombre;
       resumen.total.textContent = dinero.format(servicio.precio);
+
+      /* Con anticipo cambian tres cosas a la vez: aparece el renglón del
+         depósito, la promesa de "queda apartado al confirmar" deja de ser
+         cierta, y la nota de "no pedimos tarjeta" también. Si una se actualiza
+         y otra no, la página se contradice sola. */
+      const conAnticipo = servicio.anticipo > 0;
+      resumen.anticipoCaja.hidden = !conAnticipo;
+
+      if (conAnticipo) {
+        resumen.anticipo.textContent = dinero.format(servicio.anticipo);
+        resumen.resta.textContent = `Pagas ${dinero.format(servicio.precio - servicio.anticipo)} el día de la cita`;
+        resumen.nota.textContent =
+          `El hueco se aparta ${pago.plazoHoras} horas mientras llega tu transferencia. En cuanto la verificamos, la cita queda confirmada.`;
+        resumen.notaEnviar.textContent =
+          'Sin tarjeta: el anticipo se manda por transferencia y no lleva comisión.';
+      } else {
+        resumen.nota.textContent =
+          'El hueco queda apartado en cuanto confirmas. Puedes cancelar hasta 2 horas antes.';
+        resumen.notaEnviar.textContent = 'No pedimos tarjeta. Pagas en el local, al terminar.';
+      }
 
       resumen.dia.textContent = diaElegido ? fechaLegible(diaElegido) : 'Sin elegir';
       resumen.dia.dataset.vacio = String(!diaElegido);
@@ -1749,6 +2186,68 @@ function iniciales(nombre: string) {
 
     let urlCalendario: string | null = null;
 
+    /* Datos de la cita que se acaba de hacer. Los necesita la subida del
+       comprobante, que ocurre después de que el formulario ya se limpió. */
+    let citaEnCurso: { folio: string; telefono: string } | null = null;
+    let relojAnticipo: number | null = null;
+
+    /* -------------------------- Pantalla del anticipo ----------------------- */
+
+    const cajaAnticipo = document.getElementById('anticipo')!;
+    const formComprobante = document.getElementById('form-comprobante') as HTMLFormElement;
+    const campoComprobante = document.getElementById('comprobante') as HTMLInputElement;
+    const botonComprobante = document.getElementById('comprobante-enviar') as HTMLButtonElement;
+    const avisoComprobante = document.getElementById('comprobante-aviso')!;
+    const listoAnticipo = document.getElementById('anticipo-listo')!;
+    const relojTexto = document.getElementById('anticipo-reloj')!;
+
+    /* La cuenta atrás se refresca cada 30 segundos. No es un temporizador
+       exacto ni pretende serlo: quien manda el anticipo necesita saber si le
+       quedan dos horas o diez minutos, no los segundos. Cuando se agota, el
+       servidor ya habrá soltado el hueco, así que se dice y se deja de contar. */
+    function pintarReloj(venceEn: string | null) {
+      if (relojAnticipo !== null) {
+        clearInterval(relojAnticipo);
+        relojAnticipo = null;
+      }
+
+      if (!venceEn) {
+        relojTexto.hidden = true;
+        return;
+      }
+
+      const refrescar = () => {
+        const falta = tiempoRestante(venceEn);
+        if (falta) {
+          relojTexto.textContent = `Te quedan ${falta} para mandar el anticipo.`;
+          relojTexto.dataset.agotado = 'false';
+        } else {
+          relojTexto.textContent =
+            'Se acabó el plazo y el hueco volvió a quedar libre. Si ya transferiste, llámanos y lo resolvemos.';
+          relojTexto.dataset.agotado = 'true';
+          if (relojAnticipo !== null) clearInterval(relojAnticipo);
+          relojAnticipo = null;
+        }
+      };
+
+      relojTexto.hidden = false;
+      refrescar();
+      relojAnticipo = window.setInterval(refrescar, 30_000);
+    }
+
+    function mostrarAvisoComprobante(tono: 'ok' | 'error', mensaje: string) {
+      avisoComprobante.dataset.tono = tono;
+      avisoComprobante.textContent = mensaje;
+      avisoComprobante.hidden = false;
+    }
+
+    function marcarComprobanteRecibido() {
+      formComprobante.hidden = true;
+      listoAnticipo.hidden = false;
+      avisoComprobante.hidden = true;
+      pintarReloj(null);
+    }
+
     function mostrarConfirmacion(datos: {
       folio: string;
       servicio: string;
@@ -1756,6 +2255,10 @@ function iniciales(nombre: string) {
       fecha: string;
       hora: string;
       duracion: number;
+      telefono: string;
+      anticipo: number;
+      pagoEstado: EstadoPago;
+      venceEn: string | null;
     }) {
       document.getElementById('conf-folio')!.textContent = datos.folio;
       document.getElementById('conf-servicio')!.textContent = datos.servicio;
@@ -1763,9 +2266,44 @@ function iniciales(nombre: string) {
       document.getElementById('conf-cuando')!.textContent =
         `${fechaLegible(datos.fecha)}, ${horaLegible(datos.hora)}`;
 
-      document.getElementById('conf-texto')!.textContent = HAY_SUPABASE
-        ? 'Te mandamos un recordatorio por WhatsApp el día anterior. Si te surge algo, avísanos con dos horas de anticipación y liberamos el lugar.'
-        : 'Esta demostración guarda la cita solo en este navegador. Con Supabase conectado, la cita llegaría al panel de la barbería al instante.';
+      citaEnCurso = { folio: datos.folio, telefono: datos.telefono };
+
+      const esperaAnticipo = datos.anticipo > 0 && datos.pagoEstado === 'esperando';
+
+      // El título y el texto tienen que decir la verdad del momento: con el
+      // anticipo pendiente, la cita NO está apartada en firme todavía.
+      const titulo = confirmada.querySelector('h3') as HTMLElement;
+      titulo.textContent = esperaAnticipo
+        ? 'Ya casi: falta el anticipo'
+        : 'Listo, tu lugar está apartado';
+
+      if (esperaAnticipo) {
+        document.getElementById('conf-texto')!.textContent = HAY_SUPABASE
+          ? 'Guardamos tu cita y te apartamos el lugar mientras llega la transferencia.'
+          : 'Esta demostración guarda la cita solo en este navegador. Con Supabase conectado, el comprobante llegaría al panel de la barbería para revisarlo.';
+      } else {
+        document.getElementById('conf-texto')!.textContent = HAY_SUPABASE
+          ? 'Te mandamos un recordatorio por WhatsApp el día anterior. Si te surge algo, avísanos con dos horas de anticipación y liberamos el lugar.'
+          : 'Esta demostración guarda la cita solo en este navegador. Con Supabase conectado, la cita llegaría al panel de la barbería al instante.';
+      }
+
+      cajaAnticipo.hidden = !esperaAnticipo;
+
+      if (esperaAnticipo) {
+        document.getElementById('anticipo-monto')!.textContent = dinero.format(datos.anticipo);
+        document.getElementById('anticipo-folio')!.textContent = datos.folio;
+        (document.getElementById('copiar-folio') as HTMLButtonElement).dataset.copiar = datos.folio;
+
+        // Cada reserva empieza con el formulario limpio: si alguien agenda dos
+        // rituales seguidos, el segundo no puede heredar el "ya lo mandaste".
+        formComprobante.hidden = false;
+        formComprobante.reset();
+        listoAnticipo.hidden = true;
+        avisoComprobante.hidden = true;
+        pintarReloj(datos.venceEn);
+      } else {
+        pintarReloj(null);
+      }
 
       const { google, outlook } = enlacesCalendario(datos);
       (document.getElementById('cal-google') as HTMLAnchorElement).href = google;
@@ -1775,11 +2313,15 @@ function iniciales(nombre: string) {
       urlCalendario = archivoCalendario(datos);
       (document.getElementById('cal-ics') as HTMLAnchorElement).href = urlCalendario;
 
+      /* Que el cliente escriba primero no es un detalle de cortesía: abre la
+         ventana de servicio de WhatsApp, y dentro de ella la barbería puede
+         responder y recordar sin pagar por plantilla. */
       const mensaje = [
         `Hola, soy ${datos.folio.replace('NF-', '')}. Acabo de reservar en ${marca.nombre}.`,
         `${datos.servicio} con ${datos.barbero}`,
         `${fechaLegible(datos.fecha)}, ${horaLegible(datos.hora)}`,
         `Folio: ${datos.folio}`,
+        ...(esperaAnticipo ? [`Voy a mandar el anticipo de ${dinero.format(datos.anticipo)}.`] : []),
       ].join('\n');
 
       (document.getElementById('conf-whatsapp') as HTMLAnchorElement).href =
@@ -1845,10 +2387,103 @@ function iniciales(nombre: string) {
       diaElegido = null;
       horaElegida = null;
       ocultarAviso();
+      // Se apaga la pantalla del anticipo y su reloj: dejarlo corriendo de
+      // fondo gastaría un intervalo por cada cita que se agende.
+      cajaAnticipo.hidden = true;
+      citaEnCurso = null;
+      pintarReloj(null);
       // La agenda cambió: el hueco que se acaba de tomar ya no está libre.
       await traerAgenda();
       actualizarResumen();
       formulario.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    /* ------------------------ Copiar CLABE y folio -------------------------- */
+
+    /* Nadie teclea a mano una CLABE de 18 dígitos sin equivocarse, y un dígito
+       mal puesto manda el dinero a otra cuenta. El botón de copiar no es un
+       adorno: es lo que evita que el anticipo se pierda. */
+    cajaAnticipo.querySelectorAll<HTMLButtonElement>('.anticipo__copiar').forEach((boton) => {
+      boton.addEventListener('click', async () => {
+        const valor = boton.dataset.copiar;
+        if (!valor) return;
+
+        const etiqueta = boton.querySelector('span')!;
+        const original = etiqueta.textContent;
+
+        try {
+          await navigator.clipboard.writeText(valor);
+          etiqueta.textContent = 'Copiado';
+          boton.dataset.copiado = 'true';
+        } catch {
+          // Safari sin permiso de portapapeles, o contexto no seguro. Se
+          // selecciona el texto para que al menos se pueda copiar a mano.
+          const dato = boton.previousElementSibling;
+          if (dato) {
+            const rango = document.createRange();
+            rango.selectNodeContents(dato);
+            const seleccion = window.getSelection();
+            seleccion?.removeAllRanges();
+            seleccion?.addRange(rango);
+          }
+          etiqueta.textContent = 'Selecciónalo';
+        }
+
+        window.setTimeout(() => {
+          etiqueta.textContent = original;
+          delete boton.dataset.copiado;
+        }, 2000);
+      });
+    });
+
+    /* --------------------------- Envío del comprobante ---------------------- */
+
+    function cargandoComprobante(activo: boolean) {
+      botonComprobante.dataset.cargando = String(activo);
+      botonComprobante.disabled = activo;
+      const texto = botonComprobante.querySelector('.comprobante__texto');
+      if (texto) texto.textContent = activo ? 'Subiendo' : 'Enviar comprobante';
+    }
+
+    formComprobante.addEventListener('submit', async (evento) => {
+      evento.preventDefault();
+      avisoComprobante.hidden = true;
+
+      const archivo = campoComprobante.files?.[0];
+      if (!archivo) {
+        mostrarAvisoComprobante('error', 'Elige la captura de tu transferencia.');
+        campoComprobante.focus();
+        return;
+      }
+
+      if (!citaEnCurso) {
+        mostrarAvisoComprobante(
+          'error',
+          `No encontramos tu reserva en esta pantalla. Mándanos el comprobante por WhatsApp al ${contacto.telefono}.`
+        );
+        return;
+      }
+
+      cargandoComprobante(true);
+
+      try {
+        await subirComprobante({
+          folio: citaEnCurso.folio,
+          telefono: citaEnCurso.telefono,
+          archivo,
+        });
+
+        marcarComprobanteRecibido();
+        window.medirEvento?.('comprobante_subido', { folio: citaEnCurso.folio });
+      } catch (error) {
+        const mensaje =
+          error instanceof ErrorReserva
+            ? error.message
+            : `No pudimos subir el comprobante. Mándanoslo por WhatsApp al ${contacto.telefono}.`;
+        mostrarAvisoComprobante('error', mensaje);
+      } finally {
+        cargandoComprobante(false);
+      }
     });
 
     /* --------------------------------- Envío -------------------------------- */
@@ -1879,15 +2514,17 @@ function iniciales(nombre: string) {
 
       cargando(true);
 
+      const telefono = String(datos.get('telefono') ?? '');
+
       try {
+        /* Solo viaja QUÉ se eligió. El precio, la duración y el anticipo los
+           pone la base de datos; lo que vuelve en `hecha` es lo que quedó
+           guardado de verdad, y es eso lo que se pinta. */
         const hecha = await reservar({
           nombre: String(datos.get('nombre') ?? ''),
-          telefono: String(datos.get('telefono') ?? ''),
+          telefono,
           correo: String(datos.get('correo') ?? '') || null,
           servicioSlug: servicio.slug,
-          servicioNombre: servicio.nombre,
-          precio: servicio.precio,
-          duracionMin: servicio.duracion,
           barberoSlug: barbero.slug,
           fecha: diaElegido,
           hora: horaElegida,
@@ -1896,21 +2533,26 @@ function iniciales(nombre: string) {
 
         mostrarConfirmacion({
           folio: hecha.folio,
-          servicio: servicio.nombre,
+          servicio: hecha.servicioNombre,
           barbero: hecha.barberoNombre,
           fecha: diaElegido,
           hora: horaElegida,
-          duracion: servicio.duracion,
+          duracion: hecha.duracionMin,
+          telefono,
+          anticipo: hecha.anticipo,
+          pagoEstado: hecha.pagoEstado,
+          venceEn: hecha.venceEn,
         });
 
         /* La conversión. `value` va en pesos para que el informe muestre el
            dinero agendado, no solo el número de citas. En GA4 hay que marcar
            este evento como evento clave. */
         window.medirEvento?.('reserva_completada', {
-          servicio: servicio.nombre,
+          servicio: hecha.servicioNombre,
           barbero: hecha.barberoNombre,
-          value: servicio.precio,
+          value: hecha.precio,
           currency: 'MXN',
+          anticipo: hecha.anticipo,
         });
 
         formulario.reset();

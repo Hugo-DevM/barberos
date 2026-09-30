@@ -96,6 +96,12 @@ const RANGOS = [
             <dt>Citas en el rango</dt>
             <dd id="t-total">—</dd>
           </div>
+          <!-- El trabajo diario del dueño: comprobantes esperando su visto
+               bueno. Se marca cuando hay alguno para que salte a la vista. -->
+          <div class="tablero__ficha" id="t-anticipos-ficha">
+            <dt>Anticipos por revisar</dt>
+            <dd id="t-anticipos">—</dd>
+          </div>
           <div class="tablero__ficha">
             <dt>Ingreso previsto</dt>
             <dd id="t-dinero">—</dd>
@@ -121,6 +127,11 @@ const RANGOS = [
           <label class="filtros__casilla">
             <input type="checkbox" id="solo-pendientes" />
             <span>Solo sin confirmar</span>
+          </label>
+
+          <label class="filtros__casilla">
+            <input type="checkbox" id="solo-anticipos" />
+            <span>Solo anticipos por revisar</span>
           </label>
         </div>
 
@@ -149,6 +160,18 @@ const RANGOS = [
         <path
           fill="currentColor"
           d="M208.49 191.51a12 12 0 01-17 17L128 145l-63.51 63.52a12 12 0 01-17-17L111 128 47.51 64.49a12 12 0 0117-17L128 111l63.51-63.52a12 12 0 0117 17L145 128z"
+        ></path>
+      </symbol>
+      <symbol id="i-eye" viewBox="0 0 256 256">
+        <path
+          fill="currentColor"
+          d="M247.31 124.76c-.35-.79-8.82-19.58-27.65-38.41C194.57 61.26 162.88 48 128 48S61.43 61.26 36.34 86.35C17.51 105.18 9 124 8.69 124.76a8 8 0 0 0 0 6.5c.35.79 8.82 19.57 27.65 38.4C61.43 194.74 93.12 208 128 208s66.57-13.26 91.66-38.34c18.83-18.83 27.3-37.61 27.65-38.4a8 8 0 0 0 0-6.5M128 192c-30.78 0-57.67-11.19-79.93-33.25A133.5 133.5 0 0 1 25 128a133.3 133.3 0 0 1 23.07-30.75C70.33 75.19 97.22 64 128 64s57.67 11.19 79.93 33.25A133.5 133.5 0 0 1 231.05 128c-7.21 13.46-38.62 64-103.05 64m0-112a48 48 0 1 0 48 48a48.05 48.05 0 0 0-48-48m0 80a32 32 0 1 1 32-32a32 32 0 0 1-32 32"
+        ></path>
+      </symbol>
+      <symbol id="i-receipt" viewBox="0 0 256 256">
+        <path
+          fill="currentColor"
+          d="M72 104a8 8 0 0 1 8-8h96a8 8 0 0 1 0 16H80a8 8 0 0 1-8-8m8 40h96a8 8 0 0 0 0-16H80a8 8 0 0 0 0 16m152-88v152a8 8 0 0 1-11.58 7.15L192 200.94l-28.42 14.21a8 8 0 0 1-7.16 0L128 200.94l-28.42 14.21a8 8 0 0 1-7.16 0L64 200.94l-28.42 14.21A8 8 0 0 1 24 208V56a16 16 0 0 1 16-16h176a16 16 0 0 1 16 16m-16 0H40v139.06l20.42-10.22a8 8 0 0 1 7.16 0L96 199.06l28.42-14.22a8 8 0 0 1 7.16 0L160 199.06l28.42-14.22a8 8 0 0 1 7.16 0L216 195.06Z"
         ></path>
       </symbol>
       <symbol id="i-arrows-clockwise" viewBox="0 0 256 256">
@@ -360,6 +383,16 @@ const RANGOS = [
 
   .tablero__ficha:first-child dd { color: var(--arena); }
 
+  /* Anticipos por revisar es lo único de este tablero sobre lo que hay que
+     ACTUAR. Cuando hay alguno se enciende; en cero se queda callado, para que
+     el color signifique algo cuando aparece. */
+  .tablero__ficha[data-urgente='true'] {
+    border-color: var(--alerta-sobre-oscuro);
+    background: var(--alerta-tenue);
+  }
+
+  .tablero__ficha[data-urgente='true'] dd { color: var(--alerta-sobre-oscuro); }
+
   /* -------------------------------- Filtros ------------------------------- */
 
   .filtros {
@@ -565,6 +598,119 @@ const RANGOS = [
     font-style: italic;
   }
 
+  /* ------------------------------- Anticipos ------------------------------- */
+
+  /* Tira al pie de la fila. Solo la tienen las citas con anticipo, así que se
+     separa del resto con una línea de color a la izquierda en vez de con un
+     encabezado que ocuparía sitio en todas las demás. */
+  #lista .pago {
+    grid-column: 2 / -1;
+    margin-top: 6px;
+    padding: 10px 12px;
+    border-radius: var(--r-inner);
+    border-left: 2px solid var(--ink-3);
+    background: var(--vino-850);
+  }
+
+  #lista .pago[data-pago='en_revision'] { border-left-color: var(--alerta-sobre-oscuro); }
+  #lista .pago[data-pago='esperando'] { border-left-color: var(--ink-3); }
+  #lista .pago[data-pago='verificado'] { border-left-color: var(--ok-sobre-oscuro); }
+  #lista .pago[data-pago='rechazado'] { border-left-color: var(--alerta-sobre-oscuro); }
+
+  #lista .pago__cabeza {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #lista .pago__icono { display: inline-flex; color: var(--ink-3); }
+
+  #lista .pago__cabeza strong {
+    font-size: 0.781rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  #lista .pago[data-pago='en_revision'] .pago__cabeza strong { color: var(--alerta-sobre-oscuro); }
+  #lista .pago[data-pago='verificado'] .pago__cabeza strong { color: var(--ok-sobre-oscuro); }
+
+  #lista .pago__plazo {
+    padding: 2px 8px;
+    border-radius: var(--r-pill);
+    background: var(--sobre-oscuro-sup);
+    font-size: 0.688rem;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  #lista .pago__plazo[data-agotado='true'] {
+    background: var(--alerta-tenue);
+    color: var(--alerta-sobre-oscuro);
+    font-weight: 600;
+  }
+
+  #lista .pago__nota {
+    margin-top: 6px;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--ink-2);
+  }
+
+  #lista .pago__acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  #lista .pago__boton {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 11px;
+    border: 1px solid var(--linea-fuerte);
+    border-radius: var(--r-pill);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.719rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
+  }
+
+  #lista .pago__boton:hover:not(:disabled) {
+    border-color: var(--arena);
+    background: var(--sobre-oscuro-sup);
+  }
+
+  #lista .pago__boton:disabled { opacity: 0.5; cursor: progress; }
+
+  #lista .pago__boton--ok { border-color: var(--ok-sobre-oscuro); color: var(--ok-sobre-oscuro); }
+  #lista .pago__boton--no { border-color: var(--alerta-sobre-oscuro); color: var(--alerta-sobre-oscuro); }
+
+  #lista .pago__vista { margin-top: 10px; }
+
+  /* Tope de altura: un comprobante de banco es alto y estrecho, y sin límite
+     empuja el resto de la agenda fuera de la pantalla. */
+  #lista .pago__vista img {
+    display: block;
+    max-width: min(100%, 320px);
+    max-height: 420px;
+    width: auto;
+    border-radius: var(--r-inner);
+    border: 1px solid var(--linea);
+    background: var(--vino-950);
+  }
+
+  #lista .pago__sin-vista {
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--ink-2);
+  }
+
   #lista .cita-fila__lado {
     display: flex;
     align-items: center;
@@ -637,6 +783,7 @@ const RANGOS = [
     #lista .cita-fila__servicio,
     #lista .cita-fila__lado,
     #lista .cita-fila__notas { grid-column: 1; }
+    #lista .pago { grid-column: 1; }
   }
 </style>
 
@@ -644,6 +791,10 @@ const RANGOS = [
   import {
     listarCitas,
     cambiarEstado,
+    verificarPago,
+    urlComprobante,
+    nombreComprobante,
+    tiempoRestante,
     entrar,
     salir,
     sesionActual,
@@ -655,6 +806,7 @@ const RANGOS = [
     CLAVE_DEMO_PANEL,
     type Cita,
     type EstadoCita,
+    type EstadoPago,
   } from '../lib/reservas';
   import { contacto } from '../data/barberia';
 
@@ -677,6 +829,31 @@ const RANGOS = [
     cancelada: 'Cancelada',
   };
 
+  const ETIQUETAS_PAGO: Record<EstadoPago, string> = {
+    no_requiere: 'Paga en el local',
+    esperando: 'Esperando anticipo',
+    en_revision: 'Comprobante por revisar',
+    verificado: 'Anticipo verificado',
+    rechazado: 'Comprobante rechazado',
+  };
+
+  /* Un anticipo sin resolver es trabajo pendiente para la barbería. Sirve para
+     el contador de arriba y para el filtro. */
+  function esperaRevision(cita: Cita): boolean {
+    return cita.estado !== 'cancelada' && cita.pago_estado === 'en_revision';
+  }
+
+  /* Mientras el anticipo no esté resuelto, la cita no se confirma "a mano":
+     se confirma verificando el pago. Si el panel ofreciera el botón genérico,
+     quedaría una cita confirmada con el anticipo todavía en revisión, que es
+     justo la contradicción que `resolver_pago` existe para evitar. */
+  function pagoSinResolver(cita: Cita): boolean {
+    return (
+      cita.anticipo > 0 &&
+      ['esperando', 'en_revision', 'rechazado'].includes(cita.pago_estado)
+    );
+  }
+
   /* Qué transiciones tienen sentido desde cada estado. Ofrecer "completar"
      en una cita cancelada solo invita a equivocarse. */
   const TRANSICIONES: Record<EstadoCita, EstadoCita[]> = {
@@ -685,6 +862,14 @@ const RANGOS = [
     completada: [],
     cancelada: ['pendiente'],
   };
+
+  function transicionesDe(cita: Cita): EstadoCita[] {
+    const base = TRANSICIONES[cita.estado];
+    if (cita.estado === 'pendiente' && pagoSinResolver(cita)) {
+      return base.filter((e) => e !== 'confirmada');
+    }
+    return base;
+  }
 
   const ICONOS: Record<EstadoCita, string> = {
     pendiente: 'arrows-clockwise',
@@ -702,6 +887,7 @@ const RANGOS = [
 
   let rango = 'hoy';
   let soloPendientes = false;
+  let soloAnticipos = false;
 
   /* ------------------------------- Entrada -------------------------------- */
 
@@ -835,7 +1021,7 @@ const RANGOS = [
     const acciones = document.createElement('div');
     acciones.className = 'acciones';
 
-    TRANSICIONES[cita.estado].forEach((destino) => {
+    transicionesDe(cita).forEach((destino) => {
       const boton = document.createElement('button');
       boton.type = 'button';
       boton.className = 'accion';
@@ -877,13 +1063,198 @@ const RANGOS = [
       fila.append(notas);
     }
 
+    const pago = bloquePago(cita);
+    if (pago) fila.append(pago);
+
     return fila;
+  }
+
+  /* --------------------------- Anticipos ----------------------------------- */
+
+  /* Todo lo del anticipo va en una tira aparte al pie de la fila, no mezclado
+     con los datos de la cita: es una tarea distinta —revisar un depósito— y
+     solo la tienen algunas citas. */
+  function bloquePago(cita: Cita): HTMLElement | null {
+    if (cita.anticipo <= 0) return null;
+
+    const caja = document.createElement('div');
+    caja.className = 'pago';
+    caja.dataset.pago = cita.pago_estado;
+
+    const cabeza = document.createElement('div');
+    cabeza.className = 'pago__cabeza';
+
+    const icono = document.createElement('span');
+    icono.className = 'pago__icono';
+    icono.innerHTML = '<svg width="15" height="15" aria-hidden="true"><use href="#i-receipt"></use></svg>';
+
+    const etiqueta = document.createElement('strong');
+    etiqueta.textContent = `${ETIQUETAS_PAGO[cita.pago_estado]} · ${dinero.format(cita.anticipo)}`;
+
+    cabeza.append(icono, etiqueta);
+
+    // Cuánto le queda al cliente antes de que el hueco se suelte. Si ya no
+    // queda nada, el sistema lo va a cancelar en el próximo refresco.
+    if (cita.pago_estado === 'esperando' || cita.pago_estado === 'rechazado') {
+      const falta = tiempoRestante(cita.vence_en);
+      const plazo = document.createElement('span');
+      plazo.className = 'pago__plazo';
+      plazo.textContent = falta ? `se libera en ${falta}` : 'plazo agotado';
+      plazo.dataset.agotado = String(!falta);
+      cabeza.append(plazo);
+    }
+
+    caja.append(cabeza);
+
+    if (cita.pago_nota) {
+      const nota = document.createElement('p');
+      nota.className = 'pago__nota';
+      nota.textContent = cita.pago_nota;
+      caja.append(nota);
+    }
+
+    if (!cita.pago_comprobante) return caja;
+
+    const acciones = document.createElement('div');
+    acciones.className = 'pago__acciones';
+
+    /* Ver el comprobante abre una vista dentro de la propia fila. No se abre
+       en otra pestaña a propósito: en modo demo la captura es un data URL y
+       los navegadores bloquean navegar a esos; y aun con URL firmada, revisar
+       sin perder el sitio en la lista es más rápido. */
+    const vista = document.createElement('div');
+    vista.className = 'pago__vista';
+    vista.hidden = true;
+
+    const verBoton = document.createElement('button');
+    verBoton.type = 'button';
+    verBoton.className = 'pago__boton';
+    verBoton.innerHTML =
+      '<svg width="14" height="14" aria-hidden="true"><use href="#i-eye"></use></svg><span>Ver comprobante</span>';
+    verBoton.setAttribute('aria-expanded', 'false');
+
+    let cargado = false;
+
+    verBoton.addEventListener('click', async () => {
+      const abierto = !vista.hidden;
+      if (abierto) {
+        vista.hidden = true;
+        verBoton.setAttribute('aria-expanded', 'false');
+        return;
+      }
+
+      vista.hidden = false;
+      verBoton.setAttribute('aria-expanded', 'true');
+      if (cargado) return;
+
+      vista.textContent = 'Abriendo…';
+      const url = await urlComprobante(cita.pago_comprobante);
+
+      vista.replaceChildren();
+      cargado = true;
+
+      if (!url) {
+        const sinVista = document.createElement('p');
+        sinVista.className = 'pago__sin-vista';
+        sinVista.textContent = HAY_SUPABASE
+          ? 'No pudimos abrir el archivo. Revisa que el bucket «comprobantes» exista en Supabase.'
+          : `Modo demostración: solo se guardó el nombre del archivo (${nombreComprobante(cita.pago_comprobante)}). Con Supabase conectado se vería la captura completa.`;
+        vista.append(sinVista);
+        return;
+      }
+
+      // Un PDF no se puede pintar en un <img>: para esos se ofrece el enlace.
+      const esPdf = /\.pdf$/i.test(cita.pago_comprobante ?? '') || url.startsWith('data:application/pdf');
+
+      if (esPdf) {
+        const enlace = document.createElement('a');
+        enlace.href = url;
+        enlace.target = '_blank';
+        enlace.rel = 'noopener';
+        enlace.className = 'pago__boton';
+        enlace.textContent = 'Abrir el PDF del comprobante';
+        vista.append(enlace);
+        return;
+      }
+
+      const imagen = document.createElement('img');
+      imagen.src = url;
+      imagen.alt = `Comprobante de la cita ${cita.folio}`;
+      imagen.loading = 'lazy';
+      vista.append(imagen);
+    });
+
+    acciones.append(verBoton);
+
+    // Verificar y rechazar solo tienen sentido mientras el pago esté en el
+    // aire. Un anticipo ya verificado no se vuelve a verificar.
+    if (cita.pago_estado === 'en_revision' || cita.pago_estado === 'rechazado') {
+      const aprobar = document.createElement('button');
+      aprobar.type = 'button';
+      aprobar.className = 'pago__boton pago__boton--ok';
+      aprobar.innerHTML =
+        '<svg width="14" height="14" aria-hidden="true"><use href="#i-check"></use></svg><span>Verificar y confirmar</span>';
+
+      const rechazar = document.createElement('button');
+      rechazar.type = 'button';
+      rechazar.className = 'pago__boton pago__boton--no';
+      rechazar.innerHTML =
+        '<svg width="14" height="14" aria-hidden="true"><use href="#i-x"></use></svg><span>Rechazar</span>';
+
+      const bloquear = (activo: boolean) => {
+        aprobar.disabled = activo;
+        rechazar.disabled = activo;
+      };
+
+      aprobar.addEventListener('click', async () => {
+        bloquear(true);
+        try {
+          await verificarPago(cita.id, true);
+          await refrescar();
+        } catch {
+          alert('No pudimos registrar la verificación. Revisa tu conexión y vuelve a intentarlo.');
+          bloquear(false);
+        }
+      });
+
+      rechazar.addEventListener('click', async () => {
+        // El motivo le llega al cliente, así que conviene escribirlo. Cancelar
+        // el diálogo no rechaza nada.
+        const motivo = prompt(
+          `¿Por qué se rechaza el anticipo de ${cita.cliente_nombre}?\n\nEl cliente lo verá y podrá mandar otro comprobante.`,
+          'No pudimos identificar la transferencia.'
+        );
+        if (motivo === null) return;
+
+        bloquear(true);
+        try {
+          await verificarPago(cita.id, false, motivo);
+          await refrescar();
+        } catch {
+          alert('No pudimos registrar el rechazo. Revisa tu conexión y vuelve a intentarlo.');
+          bloquear(false);
+        }
+      });
+
+      acciones.append(aprobar, rechazar);
+    }
+
+    caja.append(acciones, vista);
+    return caja;
   }
 
   function pintar(citas: Cita[]) {
     lista.replaceChildren();
 
-    const visibles = soloPendientes ? citas.filter((c) => c.estado === 'pendiente') : citas;
+    // Los dos filtros se acumulan: marcar ambos deja solo las citas sin
+    // confirmar que además traen comprobante por revisar.
+    let visibles = citas;
+    if (soloPendientes) visibles = visibles.filter((c) => c.estado === 'pendiente');
+    if (soloAnticipos) visibles = visibles.filter(esperaRevision);
+
+    const porRevisar = citas.filter(esperaRevision).length;
+    document.getElementById('t-anticipos')!.textContent = String(porRevisar);
+    document.getElementById('t-anticipos-ficha')!.dataset.urgente = String(porRevisar > 0);
 
     document.getElementById('t-pendientes')!.textContent = String(
       citas.filter((c) => c.estado === 'pendiente').length
@@ -903,9 +1274,13 @@ const RANGOS = [
     if (visibles.length === 0) {
       const vacio = document.createElement('p');
       vacio.className = 'lista__estado';
-      vacio.textContent = soloPendientes
-        ? 'No hay citas sin confirmar en este rango.'
-        : 'No hay citas en este rango. Cuando alguien reserve, aparecerá aquí.';
+      if (soloAnticipos) {
+        vacio.textContent = 'No hay comprobantes esperando revisión en este rango.';
+      } else if (soloPendientes) {
+        vacio.textContent = 'No hay citas sin confirmar en este rango.';
+      } else {
+        vacio.textContent = 'No hay citas en este rango. Cuando alguien reserve, aparecerá aquí.';
+      }
       lista.append(vacio);
       return;
     }
@@ -972,6 +1347,14 @@ const RANGOS = [
     'change',
     (evento) => {
       soloPendientes = (evento.target as HTMLInputElement).checked;
+      refrescar();
+    }
+  );
+
+  (document.getElementById('solo-anticipos') as HTMLInputElement).addEventListener(
+    'change',
+    (evento) => {
+      soloAnticipos = (evento.target as HTMLInputElement).checked;
       refrescar();
     }
   );

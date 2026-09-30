@@ -20,6 +20,8 @@ export default defineConfig({
           'sign-out', 'sparkle', 'drop', 'crown-simple', 'medal',
           'hourglass', 'arrows-clockwise', 'money',
           'google-logo', 'microsoft-outlook-logo', 'apple-logo',
+          // Anticipo por transferencia: aviso, copiar CLABE y comprobante.
+          'hourglass-high', 'copy', 'receipt', 'eye',
         ],
       },
     }),

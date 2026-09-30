@@ -23,7 +23,20 @@ const secciones = [
     titulo: 'Qué datos pedimos',
     parrafos: [
       'Al reservar te pedimos tu nombre y un teléfono. El correo electrónico y las notas sobre el corte son opcionales.',
-      'No pedimos datos financieros: el pago se hace en el local. Tampoco recogemos datos sensibles.',
+      'Nunca te pedimos datos de tarjeta: ni número, ni fecha de vencimiento, ni código de seguridad. Este sitio no tiene forma de cobrarte con tarjeta.',
+      'No recogemos datos sensibles en el sentido de la ley: ni de salud, ni de origen, ni de creencias.',
+    ],
+  },
+  {
+    /* Esta sección solo aplica mientras haya servicios con anticipo. Si se
+       ponen todos los `anticipo` en 0 en src/data/barberia.ts y en la tabla
+       `servicios`, sobra y hay que quitarla. */
+    titulo: 'El comprobante del anticipo',
+    parrafos: [
+      'Algunos servicios piden un anticipo por transferencia para apartar el lugar. En ese caso te pedimos que subas la captura de tu comprobante, y con ella recibimos lo que esa imagen muestre: normalmente el banco, el monto, la fecha y una clave de rastreo.',
+      'La usamos para una sola cosa: identificar tu depósito y confirmar tu cita. No la compartimos con nadie más y no la usamos para ningún otro fin.',
+      'El archivo se guarda en un almacenamiento privado al que solo entra el personal de la barbería con su cuenta. No queda en una dirección pública ni se puede encontrar por internet. Lo conservamos el tiempo que marca la ley para comprobantes de pago y después se elimina.',
+      'Si prefieres no subir nada, mándanos el comprobante por WhatsApp o enséñalo en el local, y nosotros registramos el anticipo a mano.',
     ],
   },
   {

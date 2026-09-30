@@ -14,10 +14,15 @@
    solo aparecen para preguntar qué día y qué hora es AHORA en la zona de la
    barbería. Mezclar husos horarios en el cálculo de huecos es la forma más
    rápida de ofrecer una hora que en realidad ya pasó.
+
+   Sobre el dinero: el precio, la duración y el anticipo NO se mandan al
+   servidor. `reservar()` manda el slug del servicio y la base decide cuánto
+   cuesta leyendo su propia tabla `servicios`. Lo que se devuelve es lo que
+   quedó guardado, no lo que el navegador creía.
    ========================================================================== */
 
 import { obtenerSupabase, HAY_SUPABASE } from './supabase';
-import { ZONA_HORARIA, equipo, reserva } from '../data/barberia';
+import { ZONA_HORARIA, equipo, reserva, pago, servicios as catalogo } from '../data/barberia';
 
 export { HAY_SUPABASE };
 
@@ -26,8 +31,28 @@ export { HAY_SUPABASE };
 export const PASO_MINUTOS = 30;
 
 const CLAVE_DEMO = 'navaja-filo:citas-demo';
+const BUCKET_COMPROBANTES = 'comprobantes';
+
+/* Lo que se le escribe en las notas a un apartado que se soltó solo. Se repite
+   igual en `liberar_vencidas()` de supabase/schema.sql. */
+const NOTA_LIBERADA =
+  'Apartado liberado automáticamente: no llegó el anticipo dentro del plazo.';
 
 export type EstadoCita = 'pendiente' | 'confirmada' | 'completada' | 'cancelada';
+
+/* Ciclo de vida del anticipo:
+
+     no_requiere  el servicio se paga completo en el local
+     esperando    se reservó y falta la transferencia (el reloj corre)
+     en_revision  el cliente subió el comprobante, la barbería no lo ha visto
+     verificado   la barbería lo dio por bueno; la cita pasa a confirmada
+     rechazado    no cuadró; se le abre otro plazo para mandarlo bien */
+export type EstadoPago =
+  | 'no_requiere'
+  | 'esperando'
+  | 'en_revision'
+  | 'verificado'
+  | 'rechazado';
 
 export type DiaHorario = {
   dia_semana: number;
@@ -81,16 +106,23 @@ export type Cita = {
   hora: string;
   notas: string | null;
   estado: EstadoCita;
+  anticipo: number;
+  pago_estado: EstadoPago;
+  pago_comprobante: string | null;
+  pago_subido_en: string | null;
+  pago_resuelto_en: string | null;
+  pago_nota: string | null;
+  /* ISO. Hasta cuándo se aparta el hueco sin anticipo. Nulo = no caduca. */
+  vence_en: string | null;
 };
 
+/* Lo único que viaja al servidor. El precio y la duración no están aquí a
+   propósito: los pone la base. */
 export type SolicitudReserva = {
   nombre: string;
   telefono: string;
   correo?: string | null;
   servicioSlug: string;
-  servicioNombre: string;
-  precio: number;
-  duracionMin: number;
   /* null = "el que esté libre". El servidor elige. */
   barberoSlug: string | null;
   fecha: string;
@@ -103,6 +135,13 @@ export type ReservaHecha = {
   folio: string;
   barberoSlug: string;
   barberoNombre: string;
+  /* Devueltos por la base, no por el formulario. */
+  servicioNombre: string;
+  precio: number;
+  duracionMin: number;
+  anticipo: number;
+  pagoEstado: EstadoPago;
+  venceEn: string | null;
 };
 
 /* --------------------------------------------------------------------------
@@ -230,6 +269,50 @@ export function horaLegible(hora: string): string {
   const sufijo = h24 < 12 ? 'am' : 'pm';
   const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
   return `${h12}:${String(m).padStart(2, '0')} ${sufijo}`;
+}
+
+/* Cuánto falta para que se suelte un apartado, en palabras. Se usa en la
+   pantalla del anticipo, donde "vence a las 20:14" dice menos que "te quedan
+   2 horas": lo segundo se entiende sin hacer la resta. */
+export function tiempoRestante(venceEn: string | null): string | null {
+  if (!venceEn) return null;
+  const faltan = Date.parse(venceEn) - Date.now();
+  if (Number.isNaN(faltan) || faltan <= 0) return null;
+
+  const minutos = Math.floor(faltan / 60000);
+  if (minutos < 60) return `${minutos} ${minutos === 1 ? 'minuto' : 'minutos'}`;
+
+  const horas = Math.floor(minutos / 60);
+  const resto = minutos % 60;
+  if (resto === 0) return `${horas} ${horas === 1 ? 'hora' : 'horas'}`;
+  return `${horas} h ${resto} min`;
+}
+
+/* --------------------------------------------------------------------------
+   Catálogo de servicios
+   --------------------------------------------------------------------------
+   Para PINTAR se usa este archivo de datos; para VALIDAR manda la tabla
+   `servicios` de Supabase. Ver el comentario en src/data/barberia.ts. */
+
+export type ServicioLocal = {
+  slug: string;
+  nombre: string;
+  precio: number;
+  duracionMin: number;
+  anticipo: number;
+};
+
+export function servicioPorSlug(slug: string): ServicioLocal | null {
+  const s = catalogo.find((x) => x.slug === slug);
+  return s
+    ? {
+        slug: s.slug,
+        nombre: s.nombre,
+        precio: s.precio,
+        duracionMin: s.duracionMin,
+        anticipo: s.anticipo,
+      }
+    : null;
 }
 
 /* --------------------------------------------------------------------------
@@ -381,17 +464,42 @@ function leerDemo(): Cita[] {
   }
 }
 
-function escribirDemo(citas: Cita[]) {
+function escribirDemo(citas: Cita[]): boolean {
   try {
     localStorage.setItem(CLAVE_DEMO, JSON.stringify(citas));
+    return true;
   } catch {
     /* Navegación privada con la cuota llena: la reserva se pierde al
        recargar, pero la demo sigue respondiendo. */
+    return false;
   }
 }
 
 function folioDemo(id: string): string {
   return `NF-${id.replace(/-/g, '').slice(0, 6).toUpperCase()}`;
+}
+
+/* Réplica de `liberar_vencidas()` para el modo demo. Si el demo no soltara los
+   apartados vencidos, enseñaría un comportamiento que el sistema real no
+   tiene: huecos bloqueados para siempre por alguien que nunca transfirió. */
+function liberarVencidasDemo(): void {
+  const ahora = Date.now();
+  const citas = leerDemo();
+  let cambio = false;
+
+  const siguientes = citas.map((c) => {
+    const vencida =
+      c.estado === 'pendiente' &&
+      (c.pago_estado === 'esperando' || c.pago_estado === 'rechazado') &&
+      c.vence_en !== null &&
+      Date.parse(c.vence_en) < ahora;
+
+    if (!vencida) return c;
+    cambio = true;
+    return { ...c, estado: 'cancelada' as EstadoCita, pago_nota: c.pago_nota ?? NOTA_LIBERADA };
+  });
+
+  if (cambio) escribirDemo(siguientes);
 }
 
 /* --------------------------------------------------------------------------
@@ -402,6 +510,7 @@ export async function cargarAgenda(desde: string, hasta: string): Promise<Agenda
   const sb = obtenerSupabase();
 
   if (!sb) {
+    liberarVencidasDemo();
     const citas = leerDemo().filter(
       (c) => c.estado !== 'cancelada' && c.fecha >= desde && c.fecha <= hasta
     );
@@ -447,13 +556,25 @@ const MENSAJES: Record<string, string> = {
   NOMBRE_INVALIDO: 'Revisa el nombre: hacen falta al menos tres letras.',
   TELEFONO_INVALIDO: 'Revisa el teléfono: tienen que ser diez dígitos.',
   CORREO_INVALIDO: 'Revisa el correo, algo no cuadra.',
-  DURACION_INVALIDA: 'Ese servicio no es válido. Vuelve a elegirlo.',
+  SERVICIO_INVALIDO: 'Ese servicio ya no está disponible. Vuelve a elegirlo.',
   FUERA_DE_PLAZO: 'Esa hora ya pasó o queda demasiado lejos. Elige otra.',
   DIA_CERRADO: 'Ese día la barbería no abre.',
   FUERA_DE_HORARIO: 'A esa hora ya estamos cerrando. Elige una más temprano.',
   HORA_OCUPADA: 'Alguien apartó ese hueco hace un momento. Elige otro, por favor.',
   DEMASIADAS_CITAS:
     'Ya tienes tres citas apartadas con este teléfono. Cancela alguna o llámanos y te ayudamos.',
+};
+
+/* Errores propios de la subida del comprobante. */
+const MENSAJES_PAGO: Record<string, string> = {
+  CITA_NO_ENCONTRADA:
+    'No encontramos esa cita. Revisa que el folio y el teléfono sean los de tu reserva.',
+  PAGO_NO_APLICA:
+    'Esa cita ya no está esperando el anticipo. Si crees que es un error, llámanos.',
+  RUTA_INVALIDA: 'No pudimos guardar el archivo. Vuelve a intentarlo.',
+  ARCHIVO_GRANDE: `El archivo pesa más de ${pago.pesoMaximoMb} MB. Manda una captura más ligera.`,
+  ARCHIVO_INVALIDO: 'Sube una imagen (JPG, PNG, WEBP o HEIC) o un PDF.',
+  SUBIDA_FALLIDA: 'No pudimos subir el comprobante. Revisa tu conexión y vuelve a intentarlo.',
 };
 
 /* Tiene que coincidir con `c_tope_por_telefono` de supabase/schema.sql. */
@@ -477,6 +598,12 @@ function traducirError(bruto: string): ErrorReserva {
   );
 }
 
+function traducirErrorPago(bruto: string): ErrorReserva {
+  const codigo = Object.keys(MENSAJES_PAGO).find((c) => bruto.includes(c));
+  if (codigo) return new ErrorReserva(codigo, MENSAJES_PAGO[codigo]);
+  return new ErrorReserva('DESCONOCIDO', MENSAJES_PAGO.SUBIDA_FALLIDA);
+}
+
 export async function reservar(solicitud: SolicitudReserva): Promise<ReservaHecha> {
   const sb = obtenerSupabase();
 
@@ -487,9 +614,6 @@ export async function reservar(solicitud: SolicitudReserva): Promise<ReservaHech
     p_telefono: solicitud.telefono,
     p_correo: solicitud.correo ?? null,
     p_servicio_slug: solicitud.servicioSlug,
-    p_servicio_nombre: solicitud.servicioNombre,
-    p_precio: solicitud.precio,
-    p_duracion_min: solicitud.duracionMin,
     p_barbero_slug: solicitud.barberoSlug,
     p_fecha: solicitud.fecha,
     p_hora: solicitud.hora,
@@ -506,13 +630,25 @@ export async function reservar(solicitud: SolicitudReserva): Promise<ReservaHech
     folio: fila.folio,
     barberoSlug: fila.barbero_slug,
     barberoNombre: fila.barbero_nombre,
+    servicioNombre: fila.servicio_nombre,
+    precio: fila.precio,
+    duracionMin: fila.duracion_min,
+    anticipo: fila.anticipo,
+    pagoEstado: fila.pago_estado as EstadoPago,
+    venceEn: fila.vence_en,
   };
 }
 
 /* El modo demo repite las mismas reglas que la función del servidor. Si no
    lo hiciera, la demo aceptaría citas que el sistema real rechaza y estaría
-   enseñando algo que no es. */
+   enseñando algo que no es. Igual que el servidor, el precio y el anticipo
+   salen del catálogo, no de lo que traiga la solicitud. */
 async function reservarDemo(solicitud: SolicitudReserva): Promise<ReservaHecha> {
+  liberarVencidasDemo();
+
+  const servicio = servicioPorSlug(solicitud.servicioSlug);
+  if (!servicio) throw new ErrorReserva('SERVICIO_INVALIDO', MENSAJES.SERVICIO_INVALIDO);
+
   const agenda = await cargarAgenda(solicitud.fecha, solicitud.fecha);
   const inicio = aMinutos(solicitud.hora);
 
@@ -520,7 +656,7 @@ async function reservarDemo(solicitud: SolicitudReserva): Promise<ReservaHecha> 
   if (!horario || horario.cerrado || !horario.abre || !horario.cierra) {
     throw new ErrorReserva('DIA_CERRADO', MENSAJES.DIA_CERRADO);
   }
-  if (inicio < aMinutos(horario.abre) || inicio + solicitud.duracionMin > aMinutos(horario.cierra)) {
+  if (inicio < aMinutos(horario.abre) || inicio + servicio.duracionMin > aMinutos(horario.cierra)) {
     throw new ErrorReserva('FUERA_DE_HORARIO', MENSAJES.FUERA_DE_HORARIO);
   }
 
@@ -549,13 +685,22 @@ async function reservarDemo(solicitud: SolicitudReserva): Promise<ReservaHecha> 
     agenda,
     solicitud.fecha,
     inicio,
-    solicitud.duracionMin,
+    servicio.duracionMin,
     solicitud.barberoSlug
   );
   if (libres.length === 0) throw new ErrorReserva('HORA_OCUPADA', MENSAJES.HORA_OCUPADA);
 
   const elegido = libres[0];
   const id = crypto.randomUUID();
+
+  // El plazo no puede pasarse de la hora de la cita, igual que en el servidor.
+  const pagoEstado: EstadoPago = servicio.anticipo > 0 ? 'esperando' : 'no_requiere';
+  let venceEn: string | null = null;
+  if (servicio.anticipo > 0) {
+    const limite = Date.now() + pago.plazoHoras * 3600_000;
+    const arranque = instanteUtc(solicitud.fecha, solicitud.hora).getTime();
+    venceEn = new Date(Math.min(limite, arranque)).toISOString();
+  }
 
   const cita: Cita = {
     id,
@@ -564,16 +709,23 @@ async function reservarDemo(solicitud: SolicitudReserva): Promise<ReservaHecha> 
     cliente_nombre: solicitud.nombre.trim(),
     cliente_telefono: solicitud.telefono.trim(),
     cliente_correo: solicitud.correo?.trim() || null,
-    servicio_slug: solicitud.servicioSlug,
-    servicio_nombre: solicitud.servicioNombre,
-    precio: solicitud.precio,
-    duracion_min: solicitud.duracionMin,
+    servicio_slug: servicio.slug,
+    servicio_nombre: servicio.nombre,
+    precio: servicio.precio,
+    duracion_min: servicio.duracionMin,
     barbero_slug: elegido.slug,
     barbero_nombre: elegido.nombre,
     fecha: solicitud.fecha,
     hora: solicitud.hora,
     notas: solicitud.notas?.trim() || null,
     estado: 'pendiente',
+    anticipo: servicio.anticipo,
+    pago_estado: pagoEstado,
+    pago_comprobante: null,
+    pago_subido_en: null,
+    pago_resuelto_en: null,
+    pago_nota: null,
+    vence_en: venceEn,
   };
 
   escribirDemo([...leerDemo(), cita]);
@@ -583,7 +735,222 @@ async function reservarDemo(solicitud: SolicitudReserva): Promise<ReservaHecha> 
     folio: cita.folio,
     barberoSlug: elegido.slug,
     barberoNombre: elegido.nombre,
+    servicioNombre: servicio.nombre,
+    precio: servicio.precio,
+    duracionMin: servicio.duracionMin,
+    anticipo: servicio.anticipo,
+    pagoEstado,
+    venceEn,
   };
+}
+
+/* --------------------------------------------------------------------------
+   Comprobante del anticipo
+   -------------------------------------------------------------------------- */
+
+/* Tamaño por debajo del cual el modo demo guarda la imagen entera en
+   localStorage para poder enseñarla en el panel. Por encima solo se guarda el
+   nombre: meter una foto de 4 MB en base64 revienta la cuota del navegador y
+   se perdería la cita completa, no solo el comprobante. */
+const TOPE_DEMO_BYTES = 400 * 1024;
+
+function extensionDe(archivo: File): string {
+  const delNombre = archivo.name.includes('.') ? archivo.name.split('.').pop() : null;
+  if (delNombre && /^[a-zA-Z0-9]{1,5}$/.test(delNombre)) return delNombre.toLowerCase();
+  const delTipo = archivo.type.split('/')[1];
+  return delTipo && /^[a-zA-Z0-9]{1,5}$/.test(delTipo) ? delTipo.toLowerCase() : 'bin';
+}
+
+function validarArchivo(archivo: File): void {
+  if (archivo.size > pago.pesoMaximoMb * 1024 * 1024) {
+    throw new ErrorReserva('ARCHIVO_GRANDE', MENSAJES_PAGO.ARCHIVO_GRANDE);
+  }
+  // El tipo puede venir vacío en algunos navegadores móviles; en ese caso se
+  // deja pasar y que el bucket decida, en vez de rechazar una captura buena.
+  if (archivo.type && !(pago.formatos as readonly string[]).includes(archivo.type)) {
+    throw new ErrorReserva('ARCHIVO_INVALIDO', MENSAJES_PAGO.ARCHIVO_INVALIDO);
+  }
+}
+
+function leerComoDataUrl(archivo: File): Promise<string> {
+  return new Promise((resolver, rechazar) => {
+    const lector = new FileReader();
+    lector.onload = () => resolver(String(lector.result));
+    lector.onerror = () => rechazar(new Error('lectura'));
+    lector.readAsDataURL(archivo);
+  });
+}
+
+/* Sube la captura de la transferencia y la engancha a la cita.
+
+   Van dos pasos porque son dos sistemas: el archivo entra al bucket de Storage
+   y después `registrar_comprobante` lo apunta en la cita. El orden importa —
+   si se registrara primero, una subida fallida dejaría la cita apuntando a un
+   archivo que no existe. */
+export async function subirComprobante(datos: {
+  folio: string;
+  telefono: string;
+  archivo: File;
+}): Promise<EstadoPago> {
+  validarArchivo(datos.archivo);
+
+  const sb = obtenerSupabase();
+
+  if (!sb) {
+    liberarVencidasDemo();
+    const citas = leerDemo();
+    const cita = citas.find(
+      (c) =>
+        c.folio === datos.folio.trim().toUpperCase() &&
+        c.cliente_telefono.replace(/\D/g, '') === datos.telefono.replace(/\D/g, '')
+    );
+
+    if (!cita) throw new ErrorReserva('CITA_NO_ENCONTRADA', MENSAJES_PAGO.CITA_NO_ENCONTRADA);
+    if (cita.estado !== 'pendiente' || !['esperando', 'rechazado'].includes(cita.pago_estado)) {
+      throw new ErrorReserva('PAGO_NO_APLICA', MENSAJES_PAGO.PAGO_NO_APLICA);
+    }
+
+    let guardado = `demo:${datos.archivo.name}`;
+    if (datos.archivo.size <= TOPE_DEMO_BYTES) {
+      try {
+        guardado = await leerComoDataUrl(datos.archivo);
+      } catch {
+        /* Si no se puede leer, queda el nombre: la demo sigue de pie. */
+      }
+    }
+
+    const siguientes = citas.map((c) =>
+      c.id === cita.id
+        ? {
+            ...c,
+            pago_comprobante: guardado,
+            pago_subido_en: new Date().toISOString(),
+            pago_estado: 'en_revision' as EstadoPago,
+            pago_nota: null,
+            vence_en: null,
+          }
+        : c
+    );
+
+    // Si la cuota no admite la imagen, se reintenta con solo el nombre antes
+    // de darse por vencido: perder la demo entera por una captura grande sería
+    // peor que enseñarla sin miniatura.
+    if (!escribirDemo(siguientes)) {
+      const sinImagen = siguientes.map((c) =>
+        c.id === cita.id ? { ...c, pago_comprobante: `demo:${datos.archivo.name}` } : c
+      );
+      if (!escribirDemo(sinImagen)) {
+        throw new ErrorReserva('SUBIDA_FALLIDA', MENSAJES_PAGO.SUBIDA_FALLIDA);
+      }
+    }
+
+    return 'en_revision';
+  }
+
+  // Ruta con UUID propio: nadie puede sobrescribir el comprobante de otro,
+  // ni siquiera adivinando el folio.
+  const ruta = `${datos.folio.trim().toUpperCase()}/${crypto.randomUUID()}.${extensionDe(datos.archivo)}`;
+
+  const subida = await sb.storage.from(BUCKET_COMPROBANTES).upload(ruta, datos.archivo, {
+    contentType: datos.archivo.type || undefined,
+    upsert: false,
+  });
+
+  if (subida.error) throw new ErrorReserva('SUBIDA_FALLIDA', MENSAJES_PAGO.SUBIDA_FALLIDA);
+
+  const { data, error } = await sb.rpc('registrar_comprobante', {
+    p_folio: datos.folio,
+    p_telefono: datos.telefono,
+    p_ruta: ruta,
+  });
+
+  if (error) {
+    // La cita rechazó el comprobante: el archivo ya no le sirve a nadie y
+    // dejarlo suelto en el bucket solo acumula basura.
+    await sb.storage.from(BUCKET_COMPROBANTES).remove([ruta]);
+    throw traducirErrorPago(error.message);
+  }
+
+  return (data as EstadoPago) ?? 'en_revision';
+}
+
+/* URL para que el panel vea un comprobante.
+
+   Devuelve null cuando no hay nada que abrir: en modo demo con archivos
+   grandes solo se guardó el nombre. El bucket es privado, así que en el modo
+   real hace falta una URL firmada; cinco minutos alcanzan para mirarla y
+   decidir, y no deja un enlace vivo circulando. */
+export async function urlComprobante(ruta: string | null): Promise<string | null> {
+  if (!ruta) return null;
+  if (ruta.startsWith('data:')) return ruta;
+  if (ruta.startsWith('demo:')) return null;
+
+  const sb = obtenerSupabase();
+  if (!sb) return null;
+
+  const { data, error } = await sb.storage
+    .from(BUCKET_COMPROBANTES)
+    .createSignedUrl(ruta, 300);
+
+  if (error) return null;
+  return data?.signedUrl ?? null;
+}
+
+/* Nombre legible de un comprobante, para cuando no hay imagen que enseñar. */
+export function nombreComprobante(ruta: string | null): string | null {
+  if (!ruta) return null;
+  if (ruta.startsWith('demo:')) return ruta.slice(5);
+  if (ruta.startsWith('data:')) return 'Comprobante subido';
+  return ruta.split('/').pop() ?? ruta;
+}
+
+/* La barbería da por bueno o rechaza el anticipo. Aprobar mueve la cita a
+   confirmada; rechazar le abre otro plazo al cliente. Las dos cosas pasan
+   dentro de `resolver_pago` para que el estado del pago y el de la cita no
+   puedan quedar en desacuerdo. */
+export async function verificarPago(
+  id: string,
+  aprobado: boolean,
+  nota?: string | null
+): Promise<void> {
+  const sb = obtenerSupabase();
+
+  if (!sb) {
+    const citas = leerDemo();
+    const siguientes = citas.map((c) => {
+      if (c.id !== id) return c;
+      if (aprobado) {
+        return {
+          ...c,
+          pago_estado: 'verificado' as EstadoPago,
+          pago_resuelto_en: new Date().toISOString(),
+          pago_nota: nota?.trim() || null,
+          vence_en: null,
+          estado: 'confirmada' as EstadoCita,
+        };
+      }
+      const limite = Date.now() + pago.plazoHoras * 3600_000;
+      const arranque = instanteUtc(c.fecha, c.hora).getTime();
+      return {
+        ...c,
+        pago_estado: 'rechazado' as EstadoPago,
+        pago_resuelto_en: new Date().toISOString(),
+        pago_nota: nota?.trim() || 'No pudimos identificar la transferencia.',
+        estado: 'pendiente' as EstadoCita,
+        vence_en: new Date(Math.min(limite, arranque)).toISOString(),
+      };
+    });
+    escribirDemo(siguientes);
+    return;
+  }
+
+  const { error } = await sb.rpc('resolver_pago', {
+    p_id: id,
+    p_aprobado: aprobado,
+    p_nota: nota ?? null,
+  });
+
+  if (error) throw new Error(error.message);
 }
 
 /* --------------------------------------------------------------------------
@@ -594,10 +961,19 @@ export async function listarCitas(desde: string, hasta: string): Promise<Cita[]>
   const sb = obtenerSupabase();
 
   if (!sb) {
+    liberarVencidasDemo();
     return leerDemo()
       .filter((c) => c.fecha >= desde && c.fecha <= hasta)
       .sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora));
   }
+
+  // Antes de leer se sueltan los apartados vencidos, para que el panel no
+  // muestre como vivo un hueco que el calendario público ya está ofreciendo.
+  // Si falla no se interrumpe la carga: la agenda importa más que la limpieza.
+  await sb.rpc('liberar_vencidas').then(
+    () => undefined,
+    () => undefined
+  );
 
   const { data, error } = await sb
     .from('citas')

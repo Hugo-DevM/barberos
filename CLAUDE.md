@@ -16,9 +16,20 @@ Manage the background server with `astro dev stop`, `astro dev status`, and `ast
 - `src/styles/global.css` define los tokens. No inventar colores nuevos en los
   componentes: usar las variables.
 - `src/lib/reservas.ts` es la única puerta a los datos de citas. Si no hay
-  credenciales de Supabase, cae solo a un modo demo con `localStorage`.
+  credenciales de Supabase, cae solo a un modo demo con `localStorage`. El modo
+  demo tiene que repetir las MISMAS reglas que el servidor: si acepta algo que
+  el sistema real rechaza, está enseñando algo que no existe.
 - El esquema de la base vive en `supabase/schema.sql` y se pega tal cual en el
   editor SQL de Supabase.
+- **El dinero no se le cree al navegador.** La tabla `servicios` es la autoridad
+  sobre precio, duración y anticipo; `reservar_cita` los lee de ahí y solo acepta
+  del cliente QUÉ servicio eligió. No volver a pasar precios por parámetro.
+- Los iconos de Phosphor están en una **lista blanca** en `astro.config.mjs`. Un
+  icono que no esté ahí rompe el build con "Unable to locate icon", aunque exista
+  en el paquete. Al añadir uno nuevo, añadirlo también a esa lista.
+- Las clases que crea el JavaScript del panel (`cita-fila`, `pago`, `insignia`…)
+  necesitan ir en el bloque `<style is:global>`; en el `<style>` normal, Astro
+  las descarta por no encontrarlas en el marcado.
 - `src/components/Analitica.astro` es el único lugar donde vive Google
   Analytics. No añadir etiquetas de medición en otros componentes. Los eventos
   se mandan con `window.medirEvento?.('nombre', {…})`, siempre con `?.`: el
